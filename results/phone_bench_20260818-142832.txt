@@ -1,0 +1,18 @@
+=== cpu Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf -t 4 -p 512 -n 64 -r 2
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen2vl ?B Q4_K - Medium       |   1.79 GiB |     3.09 B | CPU        |       4 |           pp512 |         31.44 ± 3.13 |
+| qwen2vl ?B Q4_K - Medium       |   1.79 GiB |     3.09 B | CPU        |       4 |            tg64 |          4.62 ± 1.43 |
+
+build: 25ae3a9 (1)
+=== cpu Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf -t 6 -p 512 -n 64 -r 2
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen2vl ?B Q4_K - Medium       |   1.79 GiB |     3.09 B | CPU        |       6 |           pp512 |        47.66 ± 13.30 |
+| qwen2vl ?B Q4_K - Medium       |   1.79 GiB |     3.09 B | CPU        |       6 |            tg64 |          1.67 ± 1.22 |
+
+build: 25ae3a9 (1)
+=== cpu Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf -t 8 -p 512 -n 64 -r 2
+| model                          |       size |     params | backend    | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | --------------: | -------------------: |
+| qwen2vl ?B Q4_K - Medium       |   1.79 GiB |     3.09 B | CPU        |       8 |           pp512 |        66.85 ± 11.29 |

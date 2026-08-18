@@ -1,0 +1,6 @@
+=== Q4_0 (Metal)
+| qwen2vl ?B Q4_0                |   1.70 GiB |     3.09 B | MTL,BLAS   |       5 |           pp512 |        719.27 ± 1.15 |
+| qwen2vl ?B Q4_0                |   1.70 GiB |     3.09 B | MTL,BLAS   |       5 |            tg64 |         60.90 ± 0.03 |
+=== Q4_0 (CPU-only)
+| qwen2vl ?B Q4_0                |   1.70 GiB |     3.09 B | MTL,BLAS   |       5 |           pp512 |        220.49 ± 1.06 |
+| qwen2vl ?B Q4_0                |   1.70 GiB |     3.09 B | MTL,BLAS   |       5 |            tg64 |         57.20 ± 0.74 |

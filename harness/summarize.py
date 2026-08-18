@@ -23,7 +23,9 @@ def summarize(paths):
     for p in paths:
         for line in pathlib.Path(p).read_text().splitlines():
             r = json.loads(line)
-            groups.setdefault((r["target"], r["config"]), []).append(r)
+            imt = r.get("image_max_tokens")
+            key = (r["target"], r["config"] + (f"@imt{imt}" if imt else ""))
+            groups.setdefault(key, []).append(r)
 
     hdr = ["run", "n", "acc%", "anls", "peakRAM_MB", "encode_ms", "prefill_tok/s",
            "decode_tok/s", "TTFT_p50_s", "TTFT_p90_s"]

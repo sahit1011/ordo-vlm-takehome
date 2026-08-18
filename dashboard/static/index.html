@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ordo Bench</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --plane: #0d0d0d;          /* page */
+    --surface: #1a1a19;        /* panels / chart surface */
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --ink-3: #898781;
+    --grid: #2c2c2a;
+    --ring: rgba(255,255,255,0.10);
+    --enc: #3987e5;            /* stage: image encode  (slot 1) */
+    --pre: #d95926;            /* stage: prefill       (slot 2) */
+    --dec: #199e70;            /* stage: decode        (slot 3) */
+    --good: #0ca30c; --warn: #fab219; --serious: #ec835a; --crit: #d03b3b;
+    --disp: "Space Grotesk", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--plane); color: var(--ink); font: 14px/1.5 var(--body); min-height: 100vh; }
+  a { color: inherit; }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--enc); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  header { display: flex; align-items: baseline; gap: 16px; padding: 18px 24px 14px;
+           border-bottom: 1px solid var(--grid); }
+  .wordmark { font: 700 20px/1 var(--disp); letter-spacing: .04em; }
+  .wordmark em { font-style: normal; color: var(--ink-3); font-weight: 400; }
+  #phoneChip { margin-left: auto; font: 500 12px var(--mono); color: var(--ink-2);
+               display: flex; gap: 14px; align-items: center; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); display: inline-block; }
+  .dot.on { background: var(--good); }
+
+  main { display: grid; grid-template-columns: 260px 1fr 1fr; gap: 14px; padding: 16px 24px; }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--surface); border: 1px solid var(--ring); border-radius: 8px; padding: 16px; }
+  h2 { font: 500 11px var(--disp); letter-spacing: .14em; text-transform: uppercase;
+       color: var(--ink-3); margin-bottom: 12px; }
+
+  /* device rail — live meters */
+  .meter { padding: 7px 0; border-bottom: 1px solid var(--grid); }
+  .meter:last-of-type { border-bottom: 0; }
+  .mhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .mhead span { color: var(--ink-3); font-size: 12px; }
+  .mhead b { font: 500 14px var(--mono); }
+  .mhead em { font: 400 11px var(--mono); font-style: normal; color: var(--ink-3); margin-left: 6px; }
+  .mhead em.up { color: var(--serious); } .mhead em.down { color: var(--good); }
+  .mtrack { height: 6px; background: var(--plane); border-radius: 3px; overflow: hidden; }
+  .mfill { height: 100%; border-radius: 3px; background: var(--ink-3); width: 0; transition: width .5s; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .seg.busy { background: repeating-linear-gradient(45deg, var(--enc), var(--enc) 6px, var(--pre) 6px, var(--pre) 12px);
+              animation: pulse 1.2s ease-in-out infinite; }
+  .livebadge { font: 500 11px var(--mono); color: var(--dec); }
+  .thermal-chip { display: inline-flex; gap: 6px; align-items: center; font: 500 12px var(--mono);
+                  padding: 2px 8px; border-radius: 4px; border: 1px solid var(--ring); }
+  #tempStrip { width: 100%; height: 72px; margin-top: 10px; display: block; }
+  .striplabel { font: 400 10px var(--mono); color: var(--ink-3); }
+  details { margin-top: 12px; }
+  summary { color: var(--ink-3); font-size: 12px; cursor: pointer; }
+  .pairform input { width: 100%; margin-top: 6px; background: var(--plane); color: var(--ink);
+                    border: 1px solid var(--grid); border-radius: 4px; padding: 6px 8px; font: 12px var(--mono); }
+
+  /* run console */
+  .row { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  select, .num { background: var(--plane); color: var(--ink); border: 1px solid var(--grid);
+                 border-radius: 4px; padding: 7px 8px; font: 13px var(--mono); }
+  label.f { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--ink-3); }
+  .btn { background: var(--ink); color: var(--plane); border: 0; border-radius: 4px;
+         padding: 8px 16px; font: 500 13px var(--disp); letter-spacing: .02em; }
+  .btn[disabled] { opacity: .45; cursor: default; }
+  .btn.ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--grid); }
+  #drop { border: 1px dashed var(--grid); border-radius: 6px; min-height: 120px; display: flex;
+          align-items: center; justify-content: center; color: var(--ink-3); font-size: 13px;
+          margin: 10px 0; overflow: hidden; cursor: pointer; }
+  #drop img { max-width: 100%; max-height: 220px; display: block; }
+  textarea { width: 100%; background: var(--plane); color: var(--ink); border: 1px solid var(--grid);
+             border-radius: 4px; padding: 8px; font: 13px var(--body); resize: vertical; min-height: 54px; }
+  #srvState { font: 12px var(--mono); color: var(--ink-3); margin-left: 8px; }
+
+  /* result panel */
+  .answer { font-size: 15px; padding: 10px 12px; background: var(--plane);
+            border-left: 3px solid var(--dec); border-radius: 4px; margin-bottom: 14px; min-height: 42px; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .tile { background: var(--plane); border: 1px solid var(--grid); border-radius: 6px; padding: 8px 10px; }
+  .tile b { display: block; font: 500 17px var(--mono); }
+  .tile span { font-size: 10.5px; color: var(--ink-3); letter-spacing: .06em; text-transform: uppercase; }
+  /* waterfall — the stage bar */
+  #wf { margin-top: 4px; }
+  .wfbar { display: flex; height: 26px; border-radius: 4px; overflow: hidden; gap: 2px; background: var(--plane); }
+  .seg { position: relative; min-width: 3px; }
+  .seg.enc { background: var(--enc); } .seg.pre { background: var(--pre); } .seg.dec { background: var(--dec); }
+  .wflegend { display: flex; gap: 14px; margin-top: 8px; font: 11.5px var(--mono); color: var(--ink-2); }
+  .sw { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-right: 5px; }
+  .ttft-tick { position: absolute; top: -6px; bottom: -6px; width: 2px; background: var(--ink); }
+  .ttft-lab { position: absolute; top: -22px; transform: translateX(-50%); font: 10px var(--mono); color: var(--ink-2); white-space: nowrap; }
+  .wfwrap { position: relative; padding-top: 22px; }
+  .empty { color: var(--ink-3); font-size: 13px; padding: 20px 0; text-align: center; }
+
+  /* history */
+  #history { grid-column: 1 / -1; }
+  table { width: 100%; border-collapse: collapse; font: 12.5px var(--mono); }
+  th { text-align: left; font: 500 10.5px var(--disp); letter-spacing: .1em; text-transform: uppercase;
+       color: var(--ink-3); padding: 6px 10px; border-bottom: 1px solid var(--grid); }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--grid); color: var(--ink-2);
+       font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.ans { max-width: 320px; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+  tbody tr:hover { background: rgba(255,255,255,0.03); }
+
+  #tip { position: fixed; pointer-events: none; background: var(--plane); border: 1px solid var(--ring);
+         border-radius: 4px; padding: 5px 9px; font: 11.5px var(--mono); color: var(--ink);
+         display: none; z-index: 10; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wordmark">ORDO <em>BENCH</em></div>
+  <div id="phoneChip"><span class="dot" id="connDot"></span><span id="connText">no phone</span></div>
+</header>
+
+<main>
+  <section id="device">
+    <h2>Device</h2>
+    <div class="meter"><div class="mhead"><span>SoC temp</span><span><b id="socTemp">–</b><em id="socDelta"></em></span></div>
+      <div class="mtrack"><div class="mfill" id="socFill"></div></div></div>
+    <div class="meter"><div class="mhead"><span>Battery</span><span><b id="batt">–</b><em id="battDelta"></em></span></div>
+      <div class="mtrack"><div class="mfill" id="battFill"></div></div></div>
+    <div class="meter"><div class="mhead"><span>RAM used</span><b id="ram">–</b></div>
+      <div class="mtrack"><div class="mfill" id="ramFill"></div></div></div>
+    <div class="meter"><div class="mhead"><span>Prime clock</span><span><b id="clkP">–</b><em id="clkPpct"></em></span></div>
+      <div class="mtrack"><div class="mfill" id="clkPFill"></div></div></div>
+    <div class="meter"><div class="mhead"><span>Perf clock</span><span><b id="clkE">–</b><em id="clkEpct"></em></span></div>
+      <div class="mtrack"><div class="mfill" id="clkEFill"></div></div></div>
+    <div style="margin-top:12px"><span class="thermal-chip" id="thermChip">—</span></div>
+    <svg id="tempStrip" aria-label="SoC temperature, rolling strip chart"></svg>
+    <div class="striplabel">SoC °C · last 8 min · hairline = 80 °C throttle risk</div>
+    <details>
+      <summary>Connect a phone</summary>
+      <form class="pairform" id="pairForm">
+        <input name="addr" placeholder="ip:port (pairing or connect)" required>
+        <input name="code" placeholder="6-digit pairing code (blank = connect)">
+        <button class="btn ghost" style="margin-top:8px">Pair / connect</button>
+        <div id="pairOut" class="striplabel" style="margin-top:6px"></div>
+      </form>
+    </details>
+  </section>
+
+  <section id="run">
+    <h2>Run</h2>
+    <div class="row">
+      <label class="f">variant<select id="cfg"></select></label>
+      <label class="f">engine<select id="eng"></select></label>
+      <label class="f">image tokens<select id="imt"></select></label>
+      <label class="f">threads<input class="num" id="thr" type="number" value="6" min="1" max="8" style="width:58px"></label>
+    </div>
+    <div class="row">
+      <button class="btn ghost" id="startSrv">Start server</button>
+      <span id="srvState">no server</span>
+    </div>
+    <div id="drop" tabindex="0" role="button" aria-label="Choose or drop a photo">drop a photo here, or click to choose</div>
+    <input type="file" id="file" accept="image/jpeg,image/png" hidden>
+    <textarea id="q" placeholder="Ask about the photo — “how much is the paneer tikka?”"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="go" disabled>Run query</button>
+      <span id="runState" style="font:12px var(--mono);color:var(--ink-3)"></span>
+    </div>
+  </section>
+
+  <section id="result">
+    <h2>Last run</h2>
+    <div class="answer" id="ans"><span class="empty">No runs yet — start a server, drop a photo, ask.</span></div>
+    <div class="tiles" id="tiles"></div>
+    <div class="wfwrap" id="wf"></div>
+  </section>
+
+  <section id="history">
+    <h2>History — every run this machine has recorded</h2>
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>time</th><th>engine</th><th>variant</th><th>imt</th><th>ttft s</th>
+        <th>encode ms</th><th>prefill t/s</th><th>decode t/s</th><th>peak °C</th><th>ram mb</th><th>answer</th>
+      </tr></thead>
+      <tbody id="histBody"></tbody>
+    </table>
+    </div>
+    <div class="empty" id="histEmpty">History is empty until the first run completes.</div>
+  </section>
+</main>
+<div id="tip" role="tooltip"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = (v, d=1) => v == null ? "–" : (+v).toFixed(d);
+let file = null, temps = [];
+
+/* ---------- config bootstrap ---------- */
+async function boot() {
+  const c = await (await fetch("/api/configs")).json();
+  $("cfg").innerHTML = c.configs.map(x =>
+    `<option value="${x.name}">${x.name}${x.size_gb ? " · " + x.size_gb + " GB" : ""}</option>`).join("");
+  $("cfg").value = "q4_0";
+  $("eng").innerHTML = c.engines.map(e => `<option>${e}</option>`).join("");
+  $("eng").value = "phone-gpu";
+  $("imt").innerHTML = c.imt_options.map(v =>
+    `<option value="${v}">${v === 0 ? "native (uncapped)" : v}</option>`).join("");
+  $("imt").value = "576";
+  loadHistory();
+}
+boot();
+
+/* ---------- device polling + thermal strip ---------- */
+const MAXP = 3801, MAXE = 3321;          // cluster max clocks, MHz
+let running = false, base = null;        // run-start snapshot for deltas
+function meter(fill, pct, color) {
+  const el = $(fill);
+  el.style.width = Math.min(Math.max(pct, 0), 100) + "%";
+  if (color) el.style.background = color;
+}
+function delta(id, cur, base0, unit, upBad) {
+  const el = $(id);
+  if (!running || base0 == null || cur == null) { el.textContent = ""; el.className = ""; return; }
+  const d = cur - base0;
+  el.textContent = (d >= 0 ? "+" : "") + d.toFixed(1) + unit;
+  el.className = d === 0 ? "" : ((d > 0) === upBad ? "up" : "down");
+}
+async function poll() {
+  try {
+    const p = await (await fetch("/api/phone")).json();
+    $("connDot").className = "dot" + (p.connected ? " on" : "");
+    $("connText").textContent = p.connected ? `${p.model} · wireless adb` : "no phone";
+    if (p.connected) {
+      const tempColor = p.soc_temp_c < 55 ? "var(--good)" : p.soc_temp_c < 75 ? "var(--warn)"
+                      : p.soc_temp_c < 88 ? "var(--serious)" : "var(--crit)";
+      $("socTemp").textContent = fmt(p.soc_temp_c) + " °C";
+      meter("socFill", (p.soc_temp_c - 30) / 70 * 100, tempColor);
+      delta("socDelta", p.soc_temp_c, base?.temp, "°", true);
+      $("batt").textContent = p.battery_pct + "% · " + fmt(p.battery_temp_c) + " °C";
+      meter("battFill", p.battery_pct, "var(--ink-2)");
+      delta("battDelta", p.battery_pct, base?.batt, "%", false);
+      const used = p.mem_total_mb - p.mem_available_mb;
+      $("ram").textContent = (used/1024).toFixed(1) + " / " + (p.mem_total_mb/1024).toFixed(1) + " GB";
+      meter("ramFill", used / p.mem_total_mb * 100, "var(--ink-2)");
+      $("clkP").textContent = p.clock_prime_mhz + " MHz";
+      $("clkPpct").textContent = Math.round(p.clock_prime_mhz / MAXP * 100) + "%";
+      meter("clkPFill", p.clock_prime_mhz / MAXP * 100, "var(--ink-2)");
+      $("clkE").textContent = p.clock_perf_mhz + " MHz";
+      $("clkEpct").textContent = Math.round(p.clock_perf_mhz / MAXE * 100) + "%";
+      meter("clkEFill", p.clock_perf_mhz / MAXE * 100, "var(--ink-2)");
+      therm(p.soc_temp_c);
+      temps.push(p.soc_temp_c); if (temps.length > 190) temps.shift();
+      strip();
+      if (!running) latest = {temp: p.soc_temp_c, batt: p.battery_pct};
+      $("srvState").textContent = p.server.ready
+        ? `ready · ${p.server.engine} · ${p.server.config} · imt ${p.server.imt} · loaded in ${p.server.load_s}s`
+        : ($("srvState").dataset.busy || "no server");
+    }
+  } catch (e) { $("connDot").className = "dot"; }
+  setTimeout(poll, running ? 1000 : 2500);
+}
+let latest = null;
+function therm(t) {
+  const c = $("thermChip");
+  const s = t < 55 ? ["✓ cool", "var(--good)"] : t < 75 ? ["△ warm", "var(--warn)"]
+        : t < 88 ? ["▲ hot — throttling likely", "var(--serious)"] : ["✕ critical", "var(--crit)"];
+  c.textContent = s[0]; c.style.color = s[1]; c.style.borderColor = s[1];
+}
+function strip() {
+  const svg = $("tempStrip"), W = svg.clientWidth || 220, H = 72, lo = 30, hi = 100;
+  const y = t => H - 6 - (Math.min(Math.max(t, lo), hi) - lo) / (hi - lo) * (H - 12);
+  const pts = temps.map((t, i) => `${(i / 189) * W},${y(t)}`).join(" ");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML =
+    `<line x1="0" x2="${W}" y1="${y(80)}" y2="${y(80)}" stroke="var(--grid)" stroke-dasharray="3 3"/>` +
+    `<polyline points="${pts}" fill="none" stroke="var(--ink-2)" stroke-width="1.5"/>`;
+}
+poll();
+
+/* ---------- connect form ---------- */
+$("pairForm").onsubmit = async ev => {
+  ev.preventDefault();
+  const fd = new FormData(ev.target);
+  if (!fd.get("code")) fd.delete("code");
+  const r = await (await fetch("/api/connect", {method: "POST", body: fd})).json();
+  $("pairOut").textContent = r.out;
+};
+
+/* ---------- server lifecycle ---------- */
+$("startSrv").onclick = async () => {
+  const fd = new FormData();
+  fd.set("engine", $("eng").value); fd.set("config", $("cfg").value);
+  fd.set("threads", $("thr").value); fd.set("imt", $("imt").value);
+  $("startSrv").disabled = true;
+  $("srvState").dataset.busy = "loading model…"; $("srvState").textContent = "loading model…";
+  const r = await (await fetch("/api/server", {method: "POST", body: fd})).json();
+  delete $("srvState").dataset.busy;
+  $("srvState").textContent = r.ok ? `ready · loaded in ${r.load_s}s` : (r.error || "failed");
+  $("startSrv").disabled = false; $("go").disabled = !r.ok || !file;
+};
+
+/* ---------- image pick ---------- */
+$("drop").onclick = () => $("file").click();
+$("drop").onkeydown = e => { if (e.key === "Enter" || e.key === " ") $("file").click(); };
+$("file").onchange = () => pick($("file").files[0]);
+$("drop").ondragover = e => e.preventDefault();
+$("drop").ondrop = e => { e.preventDefault(); pick(e.dataTransfer.files[0]); };
+function pick(f) {
+  if (!f) return;
+  file = f;
+  const img = new Image();
+  img.src = URL.createObjectURL(f);
+  $("drop").replaceChildren(img);
+  $("go").disabled = !$("srvState").textContent.startsWith("ready");
+}
+
+/* ---------- run ---------- */
+$("go").onclick = async () => {
+  const fd = new FormData();
+  fd.set("image", file); fd.set("question", $("q").value || "What does this say?");
+  $("go").disabled = true; running = true; base = latest;
+  $("ans").innerHTML = ""; $("tiles").innerHTML = "";
+  const t0 = performance.now();
+  let ttft = null, ntok = 0, text = "";
+  const tick = setInterval(() => {
+    const el = (performance.now() - t0) / 1000;
+    $("runState").textContent = ttft === null
+      ? `encoding + prefill… ${el.toFixed(1)}s`
+      : `generating… ${el.toFixed(1)}s`;
+    liveTiles(el, ttft, ntok);
+    liveWaterfall(el, ttft);
+  }, 150);
+  try {
+    const resp = await fetch("/api/infer_stream", {method: "POST", body: fd});
+    const reader = resp.body.getReader(), dec = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const {done, value} = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, {stream: true});
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 2);
+        if (!line.startsWith("data: ")) continue;
+        const ev = JSON.parse(line.slice(6));
+        if (ev.type === "token") {
+          ttft = ev.ttft; ntok = ev.n; text += ev.text;
+          $("ans").textContent = text;
+        } else if (ev.type === "done") {
+          clearInterval(tick);
+          $("runState").textContent = "done";
+          render(ev.record); addRow(ev.record);
+        } else if (ev.type === "error") {
+          clearInterval(tick); $("runState").textContent = ev.error;
+        }
+      }
+    }
+  } catch (e) { clearInterval(tick); $("runState").textContent = "request failed"; }
+  running = false; base = null;
+  $("go").disabled = false;
+};
+
+/* live views while a query runs */
+function liveTiles(elapsed, ttft, ntok) {
+  const liveTps = ttft !== null && ntok > 1 ? (ntok - 1) / (elapsed - ttft) : null;
+  $("tiles").innerHTML = [
+    [ttft !== null ? ttft.toFixed(2) + " s" : elapsed.toFixed(1) + " s…", ttft !== null ? "time to first token" : "waiting for first token"],
+    [ntok || "–", "tokens generated"],
+    [liveTps ? liveTps.toFixed(1) + " t/s" : "–", "decode · live"],
+  ].map(([v, l]) => `<div class="tile"><b>${v}</b><span class="livebadge">● live</span><br><span>${l}</span></div>`).join("");
+}
+function liveWaterfall(elapsed, ttft) {
+  const enc = ttft === null ? elapsed : ttft;
+  const dec = ttft === null ? 0 : elapsed - ttft;
+  const total = enc + dec || 1;
+  const ttftPct = (enc / total) * 100;
+  $("wf").innerHTML =
+    `<div class="wfbar">
+       <div class="seg busy" style="width:${(enc/total)*100}%" data-tip="encode + prefill (live) · ${enc.toFixed(1)}s"></div>
+       ${dec ? `<div class="seg dec" style="width:${(dec/total)*100}%" data-tip="decoding (live) · ${dec.toFixed(1)}s"></div>` : ""}
+     </div>
+     ${ttft !== null ? `<div class="ttft-tick" style="left:${ttftPct}%"></div>
+     <div class="ttft-lab" style="left:${ttftPct}%">TTFT ${ttft.toFixed(2)}s</div>` : ""}
+     <div class="wflegend">
+       <span><i class="sw" style="background:var(--enc)"></i>encode + prefill</span>
+       <span><i class="sw" style="background:var(--dec)"></i>decode</span>
+     </div>`;
+}
+
+/* ---------- result rendering ---------- */
+function render(r) {
+  $("ans").textContent = r.answer || "(empty answer)";
+  $("tiles").innerHTML = [
+    [fmt(r.ttft_s, 2) + " s", "time to first token"],
+    [r.encode_ms != null ? r.encode_ms + " ms" : "–", "image encode"],
+    [fmt(r.prefill_tps) + " t/s", "prefill · " + (r.prompt_n || "?") + " tok"],
+    [fmt(r.decode_tps) + " t/s", "decode · " + (r.decode_n || "?") + " tok"],
+    [r.peak_ram_mb ? r.peak_ram_mb + " MB" : "–", "peak ram"],
+    [r.peak_soc_temp_c ? fmt(r.peak_soc_temp_c) + " °C" : "–", "peak soc temp"],
+  ].map(([v, l]) => `<div class="tile"><b>${v}</b><span>${l}</span></div>`).join("");
+  waterfall(r);
+}
+function waterfall(r) {
+  const enc = r.encode_ms || 0, pre = r.prefill_ms || 0, dec = r.decode_ms || 0;
+  const total = enc + pre + dec;
+  if (!total) { $("wf").innerHTML = ""; return; }
+  const w = v => Math.max((v / total) * 100, 0.6) + "%";
+  const ttftPct = ((enc + pre) / total) * 100;
+  $("wf").innerHTML =
+    `<div class="wfbar" role="img" aria-label="stage timeline: encode ${enc} ms, prefill ${pre} ms, decode ${Math.round(dec)} ms">
+       <div class="seg enc" style="width:${w(enc)}" data-tip="image encode · ${enc} ms"></div>
+       <div class="seg pre" style="width:${w(pre)}" data-tip="prefill · ${Math.round(pre)} ms · ${fmt(r.prefill_tps)} t/s"></div>
+       <div class="seg dec" style="width:${w(dec)}" data-tip="decode · ${Math.round(dec)} ms · ${fmt(r.decode_tps)} t/s"></div>
+     </div>
+     <div class="ttft-tick" style="left:${ttftPct}%"></div>
+     <div class="ttft-lab" style="left:${ttftPct}%">TTFT ${fmt(r.ttft_s, 2)}s</div>
+     <div class="wflegend">
+       <span><i class="sw" style="background:var(--enc)"></i>encode ${enc} ms</span>
+       <span><i class="sw" style="background:var(--pre)"></i>prefill ${Math.round(pre)} ms</span>
+       <span><i class="sw" style="background:var(--dec)"></i>decode ${Math.round(dec)} ms</span>
+     </div>`;
+}
+
+/* ---------- tooltip ---------- */
+document.addEventListener("mousemove", e => {
+  const t = e.target.closest("[data-tip]"), tip = $("tip");
+  if (!t) { tip.style.display = "none"; return; }
+  tip.textContent = t.dataset.tip; tip.style.display = "block";
+  tip.style.left = (e.clientX + 12) + "px"; tip.style.top = (e.clientY + 12) + "px";
+});
+
+/* ---------- history ---------- */
+function addRow(r) {
+  $("histEmpty").style.display = "none";
+  const tr = document.createElement("tr");
+  tr.innerHTML =
+    `<td>${new Date(r.ts * 1000).toLocaleTimeString()}</td><td>${r.engine}</td><td>${r.config}</td>` +
+    `<td>${r.imt || "native"}</td><td>${fmt(r.ttft_s, 2)}</td><td>${r.encode_ms ?? "–"}</td>` +
+    `<td>${fmt(r.prefill_tps)}</td><td>${fmt(r.decode_tps)}</td>` +
+    `<td>${r.peak_soc_temp_c ? fmt(r.peak_soc_temp_c) : "–"}</td><td>${r.peak_ram_mb ?? "–"}</td>` +
+    `<td class="ans" title="${(r.answer || "").replace(/"/g, "&quot;")}">${r.answer || ""}</td>`;
+  $("histBody").prepend(tr);
+}
+async function loadHistory() {
+  const h = await (await fetch("/api/runs")).json();
+  h.runs.forEach(addRow);
+  if (h.runs.length) { $("histEmpty").style.display = "none"; render(h.runs[h.runs.length - 1]); }
+}
+</script>
+</body>
+</html>

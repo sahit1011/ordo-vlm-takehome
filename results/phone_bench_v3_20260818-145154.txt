@@ -1,0 +1,20 @@
+=== CPU v3: Q4_0 t6, no-mmap (anon memory), perf-mode off, RAM freed
+DEPRECATED: -mmp and --mmap are deprecated in favour of --load-mode. Please use --load-mode mmap instead.
+| model                          |       size |     params | backend    | threads |         lm |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ---------: | --------------: | -------------------: |
+| qwen2vl ?B Q4_0                |   1.70 GiB |     3.09 B | CPU        |       6 |       none |           pp512 |         54.52 ± 1.70 |
+| qwen2vl ?B Q4_0                |   1.70 GiB |     3.09 B | CPU        |       6 |       none |            tg64 |          0.64 ± 0.42 |
+
+build: 25ae3a9 (1)
+=== CPU v3: Q4_0 t8, no-mmap
+DEPRECATED: -mmp and --mmap are deprecated in favour of --load-mode. Please use --load-mode mmap instead.
+| model                          |       size |     params | backend    | threads |         lm |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | ------: | ---------: | --------------: | -------------------: |
+| qwen2vl ?B Q4_0                |   1.70 GiB |     3.09 B | CPU        |       8 |       none |           pp512 |        50.29 ± 16.71 |
+Terminated 
+=== clocks during v3:
+    113 1651200 1900800
+      2 1651200 2188800
+      1 3648000 3129600
+      1 3091200 3321600
+      1 2995200 2841600

@@ -1,0 +1,6 @@
+=== LFM2-VL-1.6B Q4_0 (Metal)
+| lfm2 1.2B Q4_0                 | 661.25 MiB |     1.17 B | MTL,BLAS   |       5 |           pp512 |       1966.24 ± 1.71 |
+| lfm2 1.2B Q4_0                 | 661.25 MiB |     1.17 B | MTL,BLAS   |       5 |            tg64 |        161.66 ± 1.00 |
+=== LFM2-VL-1.6B Q4_0 (CPU)
+| lfm2 1.2B Q4_0                 | 661.25 MiB |     1.17 B | MTL,BLAS   |       5 |           pp512 |       610.33 ± 10.73 |
+| lfm2 1.2B Q4_0                 | 661.25 MiB |     1.17 B | MTL,BLAS   |       5 |            tg64 |        157.27 ± 2.18 |

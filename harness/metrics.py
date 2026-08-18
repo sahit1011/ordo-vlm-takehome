@@ -56,8 +56,11 @@ def thermal_zones() -> dict:
 
 
 def cpu_temp_best_guess(zones: dict) -> float | None:
-    """Pick the hottest zone whose name looks CPU-related."""
-    cpu = [v for k, v in zones.items() if any(s in k.lower() for s in ("cpu", "soc", "tsens"))]
+    """Hottest CPU-looking zone, excluding trip-point setpoints (constant
+    thresholds like cpu-hw-trip-* = 95.0 that read as fake sensors)."""
+    cpu = [v for k, v in zones.items()
+           if any(s in k.lower() for s in ("cpu", "soc", "tsens"))
+           and "trip" not in k.lower()]
     return max(cpu) if cpu else (max(zones.values()) if zones else None)
 
 

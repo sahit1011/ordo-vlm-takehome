@@ -12,11 +12,14 @@ Usage:
 
 import argparse
 import csv
+import functools
 import json
 import pathlib
 import re
 import subprocess
 import time
+
+print = functools.partial(print, flush=True)  # progress must survive redirection
 
 import client
 import metrics
@@ -35,8 +38,14 @@ CONFIGS = {
     "q8":       {"model": "Qwen2.5-VL-3B-Instruct-Q8_0.gguf",   "mmproj": "mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf"},
     "q4":       {"model": "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf", "mmproj": "mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf"},
     "q2":       {"model": "Qwen2.5-VL-3B-Instruct-Q2_K.gguf",   "mmproj": "mmproj-Qwen2.5-VL-3B-Instruct-f16.gguf"},
+    "q4_0":     {"model": "Qwen2.5-VL-3B-Instruct-Q4_0.gguf",   "mmproj": "mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf"},
     "q4-mmq8":  {"model": "Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf", "mmproj": "mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf"},
     "q8-mmq8":  {"model": "Qwen2.5-VL-3B-Instruct-Q8_0.gguf",   "mmproj": "mmproj-Qwen2.5-VL-3B-Instruct-Q8_0.gguf"},
+    # smaller-model contrast points (assignment: does a small model fit the budget?)
+    "smol500-q8": {"model": "SmolVLM-500M-Instruct-Q8_0.gguf",   "mmproj": "mmproj-SmolVLM-500M-Instruct-Q8_0.gguf"},
+    "smol22-q4":  {"model": "SmolVLM2-2.2B-Instruct-Q4_K_M.gguf", "mmproj": "mmproj-SmolVLM2-2.2B-Instruct-Q8_0.gguf"},
+    "lfm2-q4":    {"model": "LFM2-VL-1.6B-Q4_0.gguf",              "mmproj": "mmproj-LFM2-VL-1.6B-Q8_0.gguf"},
+    "lfm2-q8":    {"model": "LFM2-VL-1.6B-Q8_0.gguf",              "mmproj": "mmproj-LFM2-VL-1.6B-Q8_0.gguf"},
 }
 
 ENCODE_RE = re.compile(r"(?:image|slice).{0,40}?(?:encod|process)\w*\s+in\s+(\d+)\s*ms", re.I)
@@ -45,8 +54,9 @@ ENCODE_RE = re.compile(r"(?:image|slice).{0,40}?(?:encod|process)\w*\s+in\s+(\d+
 class Server:
     """Lifecycle of one llama-server instance, local or on-phone."""
 
-    def __init__(self, target: str, cfg: dict, threads: int):
+    def __init__(self, target: str, cfg: dict, threads: int, extra_args: list[str] | None = None):
         self.target, self.cfg, self.threads = target, cfg, threads
+        self.extra_args = extra_args or []
         self.proc = None
         self.log_path = None
         self._log_offset = 0
@@ -62,7 +72,8 @@ class Server:
             self.proc = subprocess.Popen(
                 [str(MAC_BIN), "-m", str(MAC_MODELS / self.cfg["model"]),
                  "--mmproj", str(MAC_MODELS / self.cfg["mmproj"]),
-                 "--host", "127.0.0.1", "--port", str(PORT), "-c", "8192"],
+                 "--host", "127.0.0.1", "--port", str(PORT), "-c", "8192",
+                 *self.extra_args],
                 stdout=open(self.log_path, "w"), stderr=subprocess.STDOUT)
         else:
             subprocess.run(["adb", "shell", "pkill", "llama-server"], capture_output=True)
@@ -72,9 +83,18 @@ class Server:
                    f"nohup ./llama-server -m models/{self.cfg['model']} "
                    f"--mmproj models/{self.cfg['mmproj']} "
                    f"--host 127.0.0.1 --port {PORT} -t {self.threads} -c 8192 "
-                   f"> server.log 2>&1 &")
-            subprocess.run(["adb", "shell", cmd], check=True)
+                   + " ".join(self.extra_args) +
+                   " > server.log 2>&1 < /dev/null &")
+            # adbd holds the shell session open even with every stream
+            # redirected — never wait on this client; readiness is gated by
+            # the /health poll below, after which the local adb client is reaped
+            self.proc = subprocess.Popen(["adb", "shell", cmd],
+                                         stdout=subprocess.DEVNULL,
+                                         stderr=subprocess.DEVNULL)
         client.wait_ready(self.url)
+        if self.target == "phone" and self.proc and self.proc.poll() is None:
+            self.proc.terminate()
+            self.proc = None
         self._log_offset = len(self._read_log())
 
     def _read_log(self) -> str:
@@ -112,17 +132,25 @@ def main():
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--max-tokens", type=int, default=48)
     ap.add_argument("--threads", type=int, default=6, help="phone decode threads")
+    ap.add_argument("--image-max-tokens", type=int, default=None,
+                    help="cap vision tokens per image (encode/TTFT lever)")
+    ap.add_argument("--tag", default="", help="suffix for the results filename")
     ap.add_argument("--gt", default=str(ROOT / "eval/ground_truth.csv"))
     args = ap.parse_args()
+
+    extra = []
+    if args.image_max_tokens:
+        extra += ["--image-max-tokens", str(args.image_max_tokens)]
 
     items = load_eval(pathlib.Path(args.gt))
     run_id = time.strftime("%Y%m%d-%H%M%S")
 
     for name in args.configs.split(","):
         cfg = CONFIGS[name]
-        out = ROOT / f"results/{args.target}-{name}-{run_id}.jsonl"
+        tag = f"-{args.tag}" if args.tag else ""
+        out = ROOT / f"results/{args.target}-{name}{tag}-{run_id}.jsonl"
         out.parent.mkdir(exist_ok=True)
-        srv = Server(args.target, cfg, args.threads)
+        srv = Server(args.target, cfg, args.threads, extra)
         print(f"[{name}] starting server ({cfg['model']}) ...")
         srv.start()
         batt_start = metrics.battery() if args.target == "phone" else {}
@@ -138,6 +166,7 @@ def main():
                                            max_tokens=args.max_tokens)
                     rec = {
                         "config": name, "target": args.target, "rep": rep,
+                        "image_max_tokens": args.image_max_tokens,
                         "id": it["id"], "difficulty": it["difficulty"],
                         "category": it["category"], "question": it["question"],
                         "prediction": res["text"],
