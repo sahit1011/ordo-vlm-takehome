@@ -186,7 +186,7 @@
     <div style="overflow-x:auto">
     <table>
       <thead><tr>
-        <th>time</th><th>runtime</th><th>engine</th><th>variant</th><th>imt</th><th>ttft s</th>
+        <th>time</th><th>runtime</th><th>engine</th><th>variant</th><th>imt</th><th>img tok</th><th>mode</th><th>ttft s</th>
         <th>encode ms</th><th>prefill t/s</th><th>decode t/s</th><th>peak °C</th><th>ram mb</th><th>answer</th>
       </tr></thead>
       <tbody id="histBody"></tbody>
@@ -410,6 +410,14 @@ function liveWaterfall(elapsed, ttft) {
 
 /* ---------- result rendering ---------- */
 function render(r) {
+  $("ans").innerHTML = "";
+  const meta = document.createElement("div");
+  meta.style.cssText = "font:11px var(--mono);color:var(--ink-3);margin-bottom:6px";
+  meta.textContent = `${r.runtime || "llama.cpp"} · ${r.engine} · ${r.config} · cap ${r.imt || "native"} → ${r.prompt_n ?? "?"} tokens actual · ${r.cached ? "⚡ cached (perceived)" : "serial (lab)"}`;
+  $("result").insertBefore(meta, $("ans"));
+  const old = $("result").querySelectorAll("div[data-meta]");
+  old.forEach((el, i) => { if (i < old.length - 0) el.remove(); });
+  meta.setAttribute("data-meta", "1");
   $("ans").textContent = r.answer || "(empty answer)";
   $("tiles").innerHTML = [
     [fmt(r.ttft_s, 2) + " s", "time to first token"],
@@ -456,7 +464,8 @@ function addRow(r) {
   const tr = document.createElement("tr");
   tr.innerHTML =
     `<td>${new Date(r.ts * 1000).toLocaleTimeString()}</td><td>${r.runtime || "llama.cpp"}</td><td>${r.engine}</td><td>${r.config}</td>` +
-    `<td>${r.imt || "native"}</td><td>${fmt(r.ttft_s, 2)}</td><td>${r.encode_ms ?? "–"}</td>` +
+    `<td>${r.imt || "native"}</td><td>${r.prompt_n ?? "–"}</td><td>${r.cached ? "⚡cached" : "serial"}</td>` +
+    `<td>${fmt(r.ttft_s, 2)}</td><td>${r.encode_ms ?? "–"}</td>` +
     `<td>${fmt(r.prefill_tps)}</td><td>${fmt(r.decode_tps)}</td>` +
     `<td>${r.peak_soc_temp_c ? fmt(r.peak_soc_temp_c) : "–"}</td><td>${r.peak_ram_mb ?? "–"}</td>` +
     `<td class="ans" title="${(r.answer || "").replace(/"/g, "&quot;")}">${r.answer || ""}</td>`;

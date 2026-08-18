@@ -496,6 +496,42 @@ runtime reaches <1 s serial encode at reading accuracy on SM8845 —
 the caching architecture is not merely the best route to <1 s perceived,
 it is the only one, now proven exhaustively.
 
+### Token-budget Pareto on REAL photos (phone GPU, champion, serial)
+
+| Cap | Accuracy | TTFT p50 | Encode med | Tokens actual |
+|---|---|---|---|---|
+| 576 | 25/30 (83%) | ~4.3 s | 2.6 s | 570 |
+| 448 | 21/30 (70%) | 3.1 s | 1.8 s | 449 |
+| 320 | 19/30 (63%) | 2.1 s | 1.1 s | 326 |
+
+≈ every −128 tokens: −1 s TTFT, −7–10 pts accuracy. On diverse real photos the
+budget trade is a smooth slope (unlike the synthetic knife-edge cliff) —
+strongest argument for per-query routing over any fixed cap.
+QNN check: **no Hexagon HTP runtime libs in /vendor/lib64** — the MNN_QNN
+build has nothing to bind; NPU on this device is vendor-privileged only.
+(First-query encode again carried warmup: 4.3 s vs 1.8 s steady — excluded.)
+
+### MNN verdict v2 — CORRECTED (measurement trap #7: silent feature omission)
+
+Our first MNN build omitted `-DMNN_BUILD_OPENCV=ON` → `LLM_SUPPORT_VISION`
+never compiled → `<img>` tags silently ignored (logcat stats: prompt 28 tok,
+vision 0.00 s, 0.00 MP). **Every earlier MNN "accuracy failure" was a blind
+hallucination — retracted.** Trap #7: a build flag that doesn't error, just
+quietly drops your image. (Also: MNN_PRINT routes to logcat on Android —
+stats were never on stdout.)
+
+Vision-enabled rebuild, real numbers (Qwen3-VL-2B-MNN, OpenCL, on-device):
+- **Answer "120" — CORRECT.** MNN's conversion is accurate.
+- **vision time = 122.35 s for 1.77 MP (0.014 MP/s)** — MNN's Adreno vision
+  encoder is ~15–50× slower than llama.cpp's (2.6 s / 570 tok). Decode dragged
+  to 7.3 t/s by the 1,758-token context. CPU vision run froze the phone
+  (user rebooted) — consistent ≥2 min class.
+
+**Runtime chapter closed, final form: llama.cpp's Adreno vision kernels are
+the best available open-source mobile vision-encode path** — MNN wins text
+cold-start and CPU decode, loses vision by orders of magnitude. Champion
+stack unchanged and now proven against every accessible alternative.
+
 ### Open items
 
 - [ ] Encoder A/B on phone: mtmd on OpenCL vs CPU (decides TTFT story)
