@@ -834,6 +834,23 @@ Cached warm-on-drop rows minted (ledger, full-res 12 MP uploads): perceived
 1.52–2.60 s — day-3's 1.17–1.46 s figure ratified in class; the 0.25–0.44 s
 tier remains the right-sized-capture variant.
 
+### CPU-column anatomy (user-spotted): why same-variant TTFTs spread 2.5–11 s
+
+The v2 CPU qwen @128 rows varied 2.5→10.9 s at identical imt/resolution. Three
+stacked causes: (1) **the encoder wasn't on CPU** — `-ngl 0` moves decoder
+layers only; the mmproj offloads to GPU by default (encodes 0.34–0.63 s = GPU
+class, caught against the GPU cell's 391 ms p50). Engine now passes
+`--no-mmproj-offload`; 60 mislabeled rows corrected. (2) **CPU prefill
+collapses under sustained load**: 78→15 t/s within one cell (peaks 58–75 °C
+between 4-query cool-gates) — at ~145 tokens that alone spans 1.9→9.6 s.
+(3) **server-mode decode pathology reproduces on the healthy binary**:
+0.3–0.4 t/s serving vs 45 t/s llama-bench on the same ocl -ngl 0 build — the
+day-2 mystery is MODE-dependent (suspect: governor downclocks during
+memory-stall-heavy decode in the serve loop; bench's tight loop keeps clocks
+up). First token at 0.3 t/s adds ~3 s to TTFT — the other half of the spread.
+Status: CPU decode pathology re-opened, precisely scoped (any build, server
+mode, sustained). GPU path unaffected.
+
 ### Open items
 
 - [x] Encoder A/B on phone: mtmd on OpenCL vs CPU — done (7.8 vs 22.6 s; and

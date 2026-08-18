@@ -42,8 +42,12 @@ ENGINES = {
     # CPU engine runs the OCL build with -ngl 0: the dedicated cpu-build binary
     # has a pathological decode (0.3-0.6 t/s; same silicon via ocl-build -ngl 0
     # decodes ~30 t/s — llama-bench A/B'd). Root cause in the cpu build TBD.
+    # -ngl 0 moves only DECODER layers; the mmproj still offloads to GPU by
+    # default (caught: cpu-engine encodes matched GPU-engine encodes) — a true
+    # CPU column needs --no-mmproj-offload too.
     "phone-cpu": {"dir": "ocl", "ld": f"{PHONE_DIR}/ocl:/vendor/lib64", "ngl": "0",
-                  "runtime": "llama.cpp", "device": "CPU (ocl build, -ngl 0)", "available": True},
+                  "no_mmproj": True,
+                  "runtime": "llama.cpp", "device": "CPU (ocl build, -ngl 0, no mmproj offload)", "available": True},
     "phone-compat": {"dir": "compat", "ld": f"{PHONE_DIR}/compat", "ngl": None,
                      "runtime": "llama.cpp", "device": "CPU portable (any arm64 Android 8+)", "available": True},
     "mac":       {"runtime": "llama.cpp", "device": "M3 Pro Metal (dev ref)", "available": True},
@@ -256,6 +260,7 @@ def start_server(engine: str = Form(...), config: str = Form(...),
                 return JSONResponse({"error": "phone not connected"}, status_code=409)
             subprocess.run(["adb", "forward", f"tcp:{LOCAL_PORT}", f"tcp:{PHONE_PORT}"], check=True)
             ngl = f"-ngl {e['ngl']}" if e["ngl"] else ""
+            ngl += " --no-mmproj-offload" if e.get("no_mmproj") else ""
             # LD_LIBRARY_PATH must apply ONLY to llama-server: exporting it
             # shell-wide makes system tools (nohup) link vendor libs and die
             cmd = (f"cd {PHONE_DIR}/{e['dir']} && "
