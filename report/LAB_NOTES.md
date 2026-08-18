@@ -815,6 +815,25 @@ Product: one model covers both tiers — fast @96–128 (sub-second serial),
 reading @576+cache. Champion's phone token curve now: 96→11, 128→12, 256→15,
 320→19, 576→25, 1024→26 (/30).
 
+### LLM-as-judge rescoring pass (2026-08-19) + trio v2 + cached rows
+
+Substring matching under-credits near-misses → all 457 negative verdicts
+re-judged (Claude Fable 5 × 4 independent instances; rubric: same-fact
+formatting/plural/spelling/separator → correct; ANY digit deviation → wrong;
+success >0.5; positives kept). **44/457 flipped (~10%), zero digit errors
+forgiven, ordering unchanged, cells +0–7 pts.** Audit:
+results/llm_judge_rescores.jsonl · ledger carries correct + correct_judge.
+Headlines (substring → judge): champion @576 phone 25→26/30; Q8 25→27; @1024
+26→26 — **judged, @576 = @1024: the last resolution rung buys nothing**;
+sub-second club: Qwen @96 12/30, @128 14/30 vs LFM2/Smol 1-tile 9/30 each
+(champion's fast-tier lead widens); Mac ladder BF16/Q8/Q2 26/26/25, MXFP4 26.
+
+Trio v2 (fixed CPU engine, judge-scored): qwen @128 14/30 · smol 1-tile 9/30 ·
+lfm2 1-tile 9/30 — backend-invariance 3/3, CPU TTFTs now honest physics.
+Cached warm-on-drop rows minted (ledger, full-res 12 MP uploads): perceived
+1.52–2.60 s — day-3's 1.17–1.46 s figure ratified in class; the 0.25–0.44 s
+tier remains the right-sized-capture variant.
+
 ### Open items
 
 - [x] Encoder A/B on phone: mtmd on OpenCL vs CPU — done (7.8 vs 22.6 s; and
@@ -829,8 +848,9 @@ reading @576+cache. Champion's phone token curve now: 96→11, 128→12, 256→1
       dashboard's phone-cpu engine now runs the ocl build with -ngl 0 (honest
       CPU physics); cpu-build root cause (suspect: KleidiAI repack path or
       -march=armv8.7 flags) documented open. Bench A/B landed: cpu build
-      pp256 = 31.0 t/s, **tg32 = 0.45 t/s** — decode-only defect, isolated,
-      67× vs the ocl binary at -ngl 0 (30 t/s) on identical silicon. Trio
+      pp256 = 31.0 / tg32 = **0.45 t/s**; ocl build -ngl 0 = **59.1 / 45.1 t/s**
+      — 100× decode defect + 1.9× prefill deficit, isolated on identical
+      silicon. Healthy phone-CPU decode = 45 t/s (usable!). Trio
       re-run on the fixed engine.
 - [x] Full ladder on phone with thermal protocol — done (Q4_0/Q8_0 25/30,
       Q2_K CPU-bound, BF16 probe, MXFP4 Metal-only)

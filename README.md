@@ -297,9 +297,12 @@ OpenCL + two-phase caching.** Full spec and showcase run:
 
 ## 7. What surprised us
 
-1. **The same GPU runs the same image in 2.6 s or 122 s depending on whose
-   kernels you run** (llama.cpp vs MNN vision, before MNN's fair-build
-   correction to 14.4 s). Runtime × silicon dominates model choice.
+1. **The same GPU runs the same image in 2.6 s or 14.4 s depending on whose
+   kernels you run** (llama.cpp vs MNN vision, fair builds both — 5–6×).
+   Runtime × silicon dominates model choice. The worst encode in our recorded history — 122 s (MNN,
+   1,758 tokens, in the ledger) — was two stacked config errors of ours:
+   `MNN_LOW_MEMORY` (~3× slower kernels) on an uncapped ~3×-token encode.
+   Config errors masquerade as kernel quality until re-measured fairly.
 2. **Quantization never bought TTFT.** The download shrinks 6×, decode
    triples — and the user waits the same, because encode+prefill own TTFT.
 3. **A 4% pixel difference flips digits** — and no client-side resampler

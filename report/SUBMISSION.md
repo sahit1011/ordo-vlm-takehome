@@ -31,6 +31,8 @@
 
 **Metric.** Normalized substring/alias match on a short factual answer (uniform brevity instruction — protocol v2), span-based ANLS secondary. Chosen because Ordo's task is *extracting one fact aloud*; binary fact-presence is product-faithful and human-auditable, and every prediction is stored raw so corrected ground truth re-scores offline.
 
+**Scoring upgrade — LLM-as-judge (final metric).** Substring matching under-credits near-miss phrasings, so every negative verdict was re-judged by Claude (Fable 5): four independent judge instances, strict rubric — same fact in different clothes (case, plural, separator style, brand spelling, word order) scores high; *any* digit deviation on counts/prices/plates stays wrong — score ∈ [0,1], success at >0.5, positives kept (substring false-positives are rare on short ground truths). **457 negatives judged, 44 flipped (~10%)**; zero digit errors forgiven; model ordering unchanged everywhere, absolute accuracies +0–7 pts. Row-level audit trail: `results/llm_judge_rescores.jsonl`; the ledger carries both metrics side by side. Tables below report **substring → judge**.
+
 **"How would you know the eval set is any good?" — we measured it.** The synthetic set scored every model 92–100%: *zero discrimination*. The real set spread the same models **47%→87%** and exposed a +30-point synthetic inflation for small models (LFM2-450M: 24/26 synthetic → 18/30 real). An eval set is good exactly insofar as it separates systems known to differ. Also applied: test-retest (temp-0 repeats), cross-platform consistency (identical answers — including identical *wrong* answers — on Metal and Adreno), difficulty-gradient sanity, per-item auditability.
 
 ---
@@ -51,7 +53,7 @@
 
 *Peak RAM: phone VmHWM sampling; OpenCL driver buffers under-report on GPU runs — CPU-path peak for the 2B champion measured 3.9 GB.*
 
-**Champion ladder (Qwen3-VL-2B, our own 30 real photos, @576) — the assignment-grade ladder:** Mac Metal reference — **BF16 24/30 · Q8_0 24/30 · Q2_K 24/30**, identical accuracy across the entire precision ladder while decode runs 32 → 62 → 97 t/s: on the 2B champion the real-photo set detects *no* quantization damage even at Q2_K (the Qwen2.5-3B knee at Q4 above was on synthetic fine-print items). Phone GPU: **Q4_0 = 25/30** (TTFT p50 4.1 s, encode 2.6 s, decode 25.9 t/s); **Q8_0 = 25/30** (TTFT 6.3 s — accuracy flat, +54% TTFT from bandwidth); **@1024 = 26/30** (TTFT ~10 s). **Q2_K held accuracy but not the GPU**: no OpenCL kernels for its weight type → decoder silently on CPU, 18 t/s prefill, 37 s TTFT — ablation-confirmed (`-ngl 99` vs `-ngl 0` prefill identical), with a sharp corollary: *requesting* offload for an unsupported type is 70× destructive on decode (0.43 vs 30 t/s pure-CPU) — the 742 MB size-floor is Metal-only. BF16 probe: GPU-resident but bandwidth-bound (157 t/s prefill / 15 t/s decode, 10.5 s TTFT — feasible, pointless). MXFP4: no OpenCL kernels (Metal-only). **Final deployable Android ladder: Q4_0 (champion), Q8_0, F16/BF16 (slow) — precision never moved accuracy on this model; kernel coverage decided everything else.**
+**Champion ladder (Qwen3-VL-2B, our own 30 real photos, @576) — the assignment-grade ladder:** Mac Metal reference, substring → judge — **BF16 24 → 26 · Q8_0 24 → 26 · Q2_K 24 → 25 (of 30)**, accuracy flat within ±1 across the entire precision ladder while decode runs 32 → 62 → 97 t/s: on the 2B champion the real-photo set detects *no* quantization damage even at Q2_K (the Qwen2.5-3B knee at Q4 above was on synthetic fine-print items). Phone GPU: **Q4_0 = 25 → 26/30** (TTFT p50 4.1 s, encode 2.6 s, decode 25.9 t/s); **Q8_0 = 25 → 27/30** (TTFT 6.3 s — flat within ±1, +54% TTFT from bandwidth); **@1024 = 26 → 26/30** (TTFT ~13 s) — judge-scored, **@576 equals @1024**: the last resolution rung buys nothing once scoring is fair. **Q2_K held accuracy but not the GPU**: no OpenCL kernels for its weight type → decoder silently on CPU, 18 t/s prefill, 37 s TTFT — ablation-confirmed (`-ngl 99` vs `-ngl 0` prefill identical), with a sharp corollary: *requesting* offload for an unsupported type is 70× destructive on decode (0.43 vs 30 t/s pure-CPU) — the 742 MB size-floor is Metal-only. BF16 probe: GPU-resident but bandwidth-bound (157 t/s prefill / 15 t/s decode, 10.5 s TTFT — feasible, pointless). MXFP4 (Mac 25 → 26/30): no OpenCL kernels (Metal-only). **Final deployable Android ladder: Q4_0 (champion), Q8_0, F16/BF16 (slow) — precision never moved accuracy on this model; kernel coverage decided everything else.**
 
 **The FP4 question.** NVFP4 proper is Blackwell-silicon-only (hardware FP4 with FP8 block scales) — no path in llama.cpp or on Adreno/Metal. Its open cousin **MXFP4** (OCP microscaling: E2M1 + shared power-of-two scales per 32) *is* in our build, with a trap: the stock `MXFP4_MOE` type is a **silent no-op on dense models** (it emitted pure Q8_0 — caught by tensor-dump, trap #8). Forced onto all weight matrices via per-tensor overrides: 1.09 GB (Q4_0-class), and measured **25/30 — the equal-best Mac ladder score — at 89.5 t/s decode** (near-Q2_K speed). Verdict, completed on-device: **Metal-only.** The phone cell caught the decoder falling to CPU at launch (25 t/s probe — no OpenCL MXFP4 kernels): supps enumeration still 7/9 @576 (equal to the champion — accuracy is backend-invariant, again) but at 22 s TTFT. A rung can be accuracy-perfect and still undeployable: kernel coverage decides.
 
@@ -82,13 +84,13 @@ The champion's knee is razor-sharp: 0–2/9 below 256 tokens (labels physically 
 
 | Config (same phone, same 30 photos, serial) | tokens | encode | TTFT p50 | Accuracy |
 |---|---|---|---|---|
-| LFM2-450M, 1-tile (512 px input) | ~160–290 | ~0.3 s (CPU tower) | **0.67 s** | 9/30 |
-| Qwen3-2B Q4_0 @96 | ~116 | 0.31 s (GPU tower) | **0.82 s** | **11/30** |
-| Qwen3-2B Q4_0 @128 | ~146 | 0.39 s | 0.93 s | **12/30** |
-| Qwen3-2B Q4_0 @256 (equal-token) | ~262 | 0.82 s | 1.70 s | **15/30** |
-| Qwen3-2B Q4_0 @576 (reference) | ~560 | 2.6 s | 4.1 s | 25/30 |
+| LFM2-450M, 1-tile (512 px input) | ~160–290 | ~0.3 s (CPU tower) | **0.67 s** | 9 → 9/30 |
+| Qwen3-2B Q4_0 @96 | ~116 | 0.31 s (GPU tower) | **0.82 s** | **11 → 12/30** |
+| Qwen3-2B Q4_0 @128 | ~146 | 0.39 s | 0.93 s | **12 → 14/30** |
+| Qwen3-2B Q4_0 @256 (equal-token) | ~262 | 0.82 s | 1.70 s | **15 → 17/30** |
+| Qwen3-2B Q4_0 @576 (reference) | ~560 | 2.6 s | 4.1 s | 25 → 26/30 |
 
-Equal tokens do **not** mean equal TTFT — prefill cost is equal, but encode = tokens × the per-token price of *that tower on that backend* (LFM2's ~86M encoder: ~1.2 ms/token even on CPU; Qwen's larger tower: ~3.5 ms/token on the GPU). That refines the token-efficiency law to its final form: **TTFT = tokens × per-token cost(architecture, backend)** — token count alone is half the price tag. Verdict at the sub-second operating point: **Qwen wins it outright** — @96 is genuinely sub-second serial (0.82 s p50) at 11/30, and both low-token Qwen cells beat LFM2's 1-tile accuracy (11–12 vs 9 of 30) at the same ~300 ms encode. At *truly* equal tokens (@256 vs the ~250-token tile) Qwen reads 15/30 to LFM2's 9/30 — the mechanism is pixels-per-token: Qwen packs ~3,136 px into each token (56×56 patches over the full frame) while LFM2's 512-px tile carries only ~800 px/token, so at the same token budget Qwen simply sees 4× more image. Even the "fast tier" belongs to the champion — one model, two budgets (fast @96–128, reading @576 + caching at 1.2–1.5 s perceived / 25/30), no second model needed.
+Equal tokens do **not** mean equal TTFT — prefill cost is equal, but encode = tokens × the per-token price of *that tower on that backend* (LFM2's ~86M encoder: ~1.2 ms/token even on CPU; Qwen's larger tower: ~3.5 ms/token on the GPU). That refines the token-efficiency law to its final form: **TTFT = tokens × per-token cost(architecture, backend)** — token count alone is half the price tag. Verdict at the sub-second operating point: **Qwen wins it outright** — @96 is genuinely sub-second serial (0.82 s p50) at 11/30, and both low-token Qwen cells beat LFM2's 1-tile accuracy (11–12 vs 9 of 30) at the same ~300 ms encode. At *truly* equal tokens (@256 vs the ~250-token tile) Qwen reads 17/30 to LFM2's 9/30 (judge-scored) — the mechanism is pixels-per-token: Qwen packs ~3,136 px into each token (56×56 patches over the full frame) while LFM2's 512-px tile carries only ~800 px/token, so at the same token budget Qwen simply sees 4× more image. Even the "fast tier" belongs to the champion — one model, two budgets (fast @96–128, reading @576 + caching at 1.2–1.5 s perceived / 25/30), no second model needed.
 
 ![Accuracy vs latency Pareto](figures/pareto_phone.png)
 
@@ -114,16 +116,16 @@ Equal tokens do **not** mean equal TTFT — prefill cost is equal, but encode = 
 
 | Variant | tokens p50 | encode p50 | TTFT p50 | Accuracy | Note |
 |---|---|---|---|---|---|
-| Q4_0 @96 | 116 | 0.31 s | 0.82 s | 11/30 | sub-second serial floor |
-| Q4_0 @128 | 146 | 0.39 s | 0.93 s | 12/30 | |
-| Q4_0 @256 | 262 | 0.82 s | 1.70 s | 15/30 | |
-| Q4_0 @320 | 326 | 1.13 s | 2.11 s | 19/30 | enumeration sweet spot |
-| Q4_0 @448 | 449 | 1.80 s | 3.11 s | 21/30 | |
-| Q2_K @576 | 574 | 3.69 s | **37.3 s** | 21/26 (81%) | decoder CPU-fallback, ablation-confirmed — accuracy held, latency died |
-| Q8_0 @576 | 580 | 3.82 s | 6.34 s | 25/30 | accuracy = Q4_0 at +38% TTFT |
-| **Q4_0 @576 ★** | 580 | 2.67 s | 4.61 s | **25/30** | champion serial |
-| Q4_0 @1024 | 1008 | 9.46 s | 13.2 s | **26/30** | accuracy ceiling |
-| **Q4_0 @576 + warm-on-drop** | 580 | hidden | **1.17–1.46 s perceived** | 25/30 | **the shipping config** |
+| Q4_0 @96 | 116 | 0.31 s | 0.82 s | 11 → 12/30 | sub-second serial floor |
+| Q4_0 @128 | 146 | 0.39 s | 0.93 s | 12 → 14/30 | CPU-only (fixed engine): also 14/30 judged |
+| Q4_0 @256 | 262 | 0.82 s | 1.70 s | 15 → 17/30 | |
+| Q4_0 @320 | 326 | 1.13 s | 2.11 s | 19 → 21/30 | enumeration sweet spot |
+| Q4_0 @448 | 449 | 1.80 s | 3.11 s | 21 → 22/30 | |
+| Q2_K @576 | 574 | 3.69 s | **37.3 s** | 21 → 22/26 | decoder CPU-fallback, ablation-confirmed — accuracy held, latency died |
+| Q8_0 @576 | 580 | 3.82 s | 6.34 s | 25 → 27/30 | flat within ±1 of Q4_0, +38% TTFT |
+| **Q4_0 @576 ★** | 580 | 2.67 s | 4.61 s | **25 → 26/30** | champion serial |
+| Q4_0 @1024 | 1008 | 9.46 s | 13.2 s | **26 → 26/30** | judged: no gain over @576 |
+| **Q4_0 @576 + warm-on-drop** | 580 | hidden | **1.17–1.46 s perceived** | 25 → 26/30 | **the shipping config** (fresh ledger rows: 1.5–2.6 s on full-res 12 MP uploads) |
 
 (BF16 @576: GPU-resident probe, 1 scored query correct at 10.5 s — feasible, pointless. MXFP4: Metal-only, no OpenCL kernels.)
 
@@ -132,21 +134,21 @@ Equal tokens do **not** mean equal TTFT — prefill cost is equal, but encode = 
 | Input | tokens p50 | encode p50 | TTFT p50 | Accuracy | Note |
 |---|---|---|---|---|---|
 | cap @1024 (upscaled tiles) | 3092 | 8.65 s | 12.4 s | 1/5 | upscaling past native grid destroys accuracy |
-| 1024 px | 278 | 0.32 s | 0.62 s | 9/30 | resolution-starved |
-| 512 px (1-tile) | 173 | 0.32 s | 0.66 s | 9/30 | fastest, same starvation |
-| 1344 px | 796 | 0.92 s | 1.57 s | 15/30 | |
-| native 12 MP | 2317 | 3.08 s | 5.98 s | **19/30** | its ceiling (Q4_0 probe: 17/30 vs Q8 18/30 on Mac) |
+| 1024 px | 278 | 0.32 s | 0.62 s | 9 → 11/30 | resolution-starved |
+| 512 px (1-tile) | 173 | 0.32 s | 0.66 s | 9 → 9/30 | fastest, same starvation |
+| 1344 px | 796 | 0.92 s | 1.57 s | 15 → 16/30 | |
+| native 12 MP | 2317 | 3.08 s | 5.98 s | **19 → 21/30** | its ceiling (Mac probes judged: Q4_0 19/30, Q8 19/30) |
 
 *SmolVLM-500M Q8 (capacity-limited — the knob barely matters):*
 
 | Input | tokens p50 | encode p50 | TTFT p50 | Accuracy | Note |
 |---|---|---|---|---|---|
-| native | 691 | 4.30 s | 6.36 s | 7/16 | partial cell |
-| @320 | 227 | 1.13 s | 2.19 s | 12/30 | |
-| @576 | 494 | 2.51 s | 4.48 s | **13/30** | flat ~40% everywhere |
-| 512 px (1-tile) | 160 | 0.56 s | 0.96 s | 9/30 | sub-second reached; accuracy flatline confirms capacity limit |
+| native | 691 | 4.30 s | 6.36 s | 6 → 7/15 | partial cell |
+| @320 | 227 | 1.13 s | 2.19 s | 12 → 13/30 | |
+| @576 | 494 | 2.51 s | 4.48 s | **13 → 15/30** | flat ~40–50% everywhere |
+| 512 px (1-tile) | 160 | 0.56 s | 0.96 s | 9 → 9/30 | sub-second reached; capacity limit confirmed |
 
-The grid read top-to-bottom is the whole story: Qwen's accuracy climbs smoothly with tokens (11→26 of 30) because its knob controls real resolution; LFM2 steps in tile quanta and starves below 1344 px; SmolVLM is flat at ~40% at every setting — more pixels can't fix capacity. And the two worst rows are both *backend* failures, not model failures (Q2_K's CPU decoder, LFM2's upscaled tiles). The sub-second club, final standing — all three architectures measured at their fastest full-pipeline point on the same 30 photos: **LFM2-450 1-tile 0.67 s / 9-of-30 · SmolVLM-500 1-tile 0.96 s / 9-of-30 · Qwen3-2B @96 0.82 s / 11-of-30 and @128 0.93 s / 12-of-30** — the champion wins even the speed class the small models were built for.
+The grid read top-to-bottom is the whole story: Qwen's accuracy climbs smoothly with tokens (11→26 of 30) because its knob controls real resolution; LFM2 steps in tile quanta and starves below 1344 px; SmolVLM is flat at ~40% at every setting — more pixels can't fix capacity. And the two worst rows are both *backend* failures, not model failures (Q2_K's CPU decoder, LFM2's upscaled tiles). The sub-second club, final standing — all three architectures measured at their fastest full-pipeline point on the same 30 photos: **LFM2-450 1-tile 0.67 s / 9-of-30 · SmolVLM-500 1-tile 0.96 s / 9-of-30 · Qwen3-2B @96 0.82 s / 12-of-30 and @128 0.93 s / 14-of-30 (judge-scored)** — the champion wins even the speed class the small models were built for.
 
 **Why the same file lands differently per platform.** Every stage is a ggml compute graph, and at load time each backend is asked, operator by operator, "do you have a kernel for this?" Metal is ggml's most mature GPU backend with near-complete op coverage — LFM2's SigLIP2 encoder runs fully on the M-series GPU. The OpenCL/Adreno backend is the youngest with a narrower op set — the same SigLIP2 graph contains operators it doesn't implement, so llama.cpp reroutes the whole CLIP graph to CPU. **"GPU-capable" is not a property of the model; it's per-backend, per-operator kernel coverage.** The tally makes it vivid: on the *same phone GPU*, Qwen's and SmolVLM-500M's encoders run fine while both LFM2s and SmolVLM2-2.2B fall off; the same lottery hit the decoder via weight types — Q2_K and MXFP4 (CPU on Adreno, GPU on Metal) vs Q4_0/Q8_0/BF16/Q4_K_M (GPU on both). Product consequence: on Android, LFM2-450M's TTFT floor is CPU-encoder-bound at ~1.6 s *per tile* — its 0.99 s Mac numbers reproduce on the phone only for 1-tile photos (measured: 0.44–1.0 s single-tile vs ~8 s three-tile on the same 5-photo cell, flat across every token cap because the cap can't change tile count). So the mobile-model question isn't "how good is the model" but **"does every stage of this architecture have kernels on this backend"** — and it has to be measured, because nothing announces the fallback.
 
@@ -189,7 +191,7 @@ QLoRA on the 4-bit champion, **decoder-side adapters** (Part 3 proved the decode
 
 ## What surprised us (short list; full narrative in JOURNEY.md)
 
-1. Same GPU, same image: **2.6 s or 122 s of encoding depending on whose kernels** (llama.cpp vs MNN-vision) — runtime×silicon dominates model choice.
+1. Same GPU, same image: **2.6 s vs 14.4 s of encoding depending on whose kernels** (llama.cpp vs MNN-vision, fair builds both) — runtime×silicon dominates model choice. And the worst encode ever recorded in our history — **122 s** (ledger row: MNN, 1,758 tokens, encode 122,350 ms) — was two stacked errors of ours: the `MNN_LOW_MEMORY` build flag (~3× slower kernels) on an uncapped ~3×-token encode. Config errors masquerade as kernel quality until re-measured fairly.
 2. **Quantization never bought TTFT** — 6× smaller download, 3× decode, same wait.
 3. **TTFT is a property of token count, not kernel speed** — LFM2's 3× faster encoder is fully repaid by 3.8× more tokens (dead-heat TTFT, worse accuracy).
 4. **A 4% pixel difference flips digits**, and no client-side resampler survived it.
@@ -198,7 +200,7 @@ QLoRA on the 4-bit champion, **decoder-side adapters** (Part 3 proved the decode
 7. Sustained load **plateaus** instead of spiraling; accuracy doesn't flinch at 78 °C.
 8. The champion **switched mid-project** when Qwen3-VL-2B beat the original pick on every axis — keeping the bracket open paid.
 9. **Kernel coverage, not precision, decides deployability** — Q2_K and MXFP4 are accuracy-equal to Q4_0 but decode on CPU on Adreno (no OpenCL kernels for those weight types), while the same files fly on Metal. Three of six model-encoders silently fell off the phone GPU the same way. We now *measure* placement at every launch instead of trusting flags.
-10. **Our own tuned-CPU build carried a 67× decode defect** — bench-isolated: 31 t/s prefill but **0.45 t/s decode**, while the OpenCL binary at `-ngl 0` decodes 30 t/s on the same silicon (suspect: KleidiAI repack path / `-march=armv8.7` flags; open). Caught only because every run lands in the ledger with placement labels and rates. Fix shipped: the CPU engine now runs the ocl build at `-ngl 0` — honest CPU physics. The moral doubles trap #10: *a healthy-looking build can be broken in one stage only.*
+10. **Our own tuned-CPU build carried a 100× decode defect** — bench-isolated on identical silicon, same model: cpu-build 31 t/s prefill / **0.45 t/s decode** vs the OpenCL binary at `-ngl 0`: **59 t/s prefill / 45 t/s decode** (suspect: KleidiAI repack path / `-march=armv8.7` flags; open). Caught only because every run lands in the ledger with placement labels and rates. Fix shipped: the CPU engine now runs the ocl build at `-ngl 0` — honest CPU physics. The moral doubles trap #10: *a healthy-looking build can be broken in one stage only.*
 
 ## What we cut, and why (full list in README §8)
 
@@ -208,12 +210,16 @@ NPU integration (gated at every layer — evidence documented to the missing-lib
 
 ## Final verdict
 
-**Sub-second on-device vision inference is achievable today** — measured, serial, no cache, no NPU, on a stock Android phone over llama.cpp + Adreno GPU, on our own 30 real photos. Three architectures crossed the line: **Qwen3-VL-2B @96 = 0.82 s (11/30) and @128 = 0.93 s (12/30) · LFM2-450M 1-tile = 0.67 s (9/30) · SmolVLM-500M 1-tile = 0.96 s (9/30)**. The same physics holds CPU-only (no GPU at all): Qwen @128 scored 13/30 — accuracy is backend-invariant; only the clock changes. (The CPU-only latency column had its own detective story: the tuned-CPU build binary turned out to carry a decode-only 67× defect — 31 t/s prefill / 0.45 t/s decode, bench-isolated — while the OpenCL binary at `-ngl 0` decodes ~30 t/s on identical silicon. The CPU engine now uses the healthy path; CPU-floor cells re-measured on it.)
+![Decision map — every combo from 37 s to 0.44 s](figures/decision_map.png)
+
+The whole journey in one picture: every measured combo (model · precision · input budget · condition) sorted worst → best TTFT on a log axis, each with its accuracy on the real set — from the silent-failure rows at 37 s down to the 0.44 s floor (the day-2 thermal-disaster run at 685 s sits off-scale, in LAB_NOTES and the ledger), with the seven numbered decisions that carved the path and the shipping config outlined at 1.3 s / 83%.
+
+**Sub-second on-device vision inference is achievable today** — measured, serial, no cache, no NPU, on a stock Android phone over llama.cpp + Adreno GPU, on our own 30 real photos. Three architectures crossed the line: **Qwen3-VL-2B @96 = 0.82 s (12/30) and @128 = 0.93 s (14/30) · LFM2-450M 1-tile = 0.67 s (9/30) · SmolVLM-500M 1-tile = 0.96 s (9/30)** (judge-scored). The same physics holds CPU-only (no GPU at all): Qwen @128 scored 14/30 on the fixed CPU engine — accuracy is backend-invariant; only the clock changes. (The CPU-only latency column had its own detective story: the tuned-CPU build binary turned out to carry a 100× decode defect — 31 t/s prefill / 0.45 t/s decode vs 59 / 45 t/s through the OpenCL binary at `-ngl 0`, bench-isolated on identical silicon. Healthy phone-CPU decode is a genuinely usable 45 t/s. The CPU engine now uses the healthy path; CPU-floor cells re-measured on it.)
 
 **Even <500 ms was touched, twice, by different routes.** Serial: LFM2-450M at cap 64 on a small 1-tile photo — **0.44 s TTFT, 157 ms encode (on its CPU-fallback encoder, no GPU vision at all), 84 tokens** — with the expected cost: the knife-edge digits degraded at that budget (ledger row, single sighting). Perceived: the champion's cached big-text tier — **0.25–0.44 s** with warm-on-drop + right-sized capture. So the sub-half-second class exists on today's hardware in two forms: tiny inputs (pay in accuracy) or caching (pay in query-class coverage) — the trainable-accuracy path below is what turns the first form from a stunt into a tier.
 
-**One model holds the entire frontier.** The champion spans it with a single dial: 0.82 s @ 37% → 1.7 s @ 50% → 2.1 s @ 63% → 4.6 s @ 83% serial → **1.17–1.46 s perceived @ 83% with two-phase caching** → 13 s @ 87% ceiling. No small model earns a place at any point on that curve — the champion wins even the speed class they were built for.
+**One model holds the entire frontier.** The champion spans it with a single dial: 0.82 s @ 40% → 1.7 s @ 57% → 2.1 s @ 70% → 4.6 s @ 87% serial → **1.17–1.46 s perceived @ 87% with two-phase caching** → and judge-scored, @1024's 13 s buys nothing more (87% both). No small model earns a place at any point on that curve — the champion wins even the speed class they were built for.
 
 **The laws behind the curve** (each measured, several the hard way): TTFT = tokens × per-token cost of the architecture on the backend · accuracy at a budget tracks pixels-per-token · kernel coverage, not precision, decides what's deployable · precision is a distribution lever (download size, decode speed), never an accuracy or TTFT lever on this model · caching is the only measured path to sub-second *with* the fine print.
 
-**The path forward — accuracy at fixed latency, not latency itself.** Fine-tuning cannot speed up TTFT (that's set by tokens × silicon), but it attacks exactly what limits the fast tier: the resolution-starved misses at low token budgets. **SFT/QLoRA trained at the deployment budget** (same smart-resize, @96–320 inputs) teaches the model to read what those budgets actually show it — the Colab pipeline is prepped (Part 5) with train-at-deployment-budget as its core experiment. DPO/RL then shape answer format (brevity, fact-first), trimming decode tokens and stabilizing scoring while leaving TTFT untouched. Target end-state: the 0.8–0.9 s tier moving from ~37–40% toward the 60%+ band — sub-second latency already proven, accuracy the trainable half.
+**The path forward — accuracy at fixed latency, not latency itself.** Fine-tuning cannot speed up TTFT (that's set by tokens × silicon), but it attacks exactly what limits the fast tier: the resolution-starved misses at low token budgets. **SFT/QLoRA trained at the deployment budget** (same smart-resize, @96–320 inputs) teaches the model to read what those budgets actually show it — the Colab pipeline is prepped (Part 5) with train-at-deployment-budget as its core experiment. DPO/RL then shape answer format (brevity, fact-first), trimming decode tokens and stabilizing scoring while leaving TTFT untouched. Target end-state: the 0.8–0.9 s tier moving from ~40–47% toward the 60%+ band — sub-second latency already proven, accuracy the trainable half.
