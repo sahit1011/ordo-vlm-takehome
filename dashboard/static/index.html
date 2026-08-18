@@ -204,7 +204,7 @@
   <section id="history">
     <h2>History — every run this machine has recorded</h2>
     <input class="num" id="histFilter" placeholder="filter: mnn, cached, q4_0, 320…" style="width:260px;margin-bottom:8px"
-           oninput="const q=this.value.toLowerCase(); document.querySelectorAll('#histBody tr').forEach(tr=>tr.style.display = tr.textContent.toLowerCase().includes(q)?'':'none');">
+           oninput="histQuery=this.value.toLowerCase(); histPage=1; renderHist();">
     <div style="overflow-x:auto">
     <table>
       <thead><tr>
@@ -214,6 +214,7 @@
       <tbody id="histBody"></tbody>
     </table>
     </div>
+    <div id="histPager" style="display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;margin-top:10px;font:12px var(--disp)"></div>
     <div class="empty" id="histEmpty">History is empty until the first run completes.</div>
   </section>
 </main>
@@ -546,8 +547,10 @@ function bk(r) {
   const s = x => !x ? "?" : (x.startsWith("cpu") ? (r.engine !== "phone-cpu" ? "cpu⚠" : "cpu") : "gpu");
   return `${s(r.enc_backend)}/${s(r.dec_backend)}`;
 }
-function addRow(r) {
-  $("histEmpty").style.display = "none";
+let HIST = [], histPage = 1, histQuery = "";
+const PAGE_SIZE = 25;
+
+function histRowEl(r) {
   const tr = document.createElement("tr");
   tr.style.cursor = "pointer";
   tr.onclick = () => openDetail(r);
@@ -559,12 +562,67 @@ function addRow(r) {
     `<td>${fmt(r.prefill_tps)}</td><td>${fmt(r.decode_tps)}</td>` +
     `<td>${r.peak_soc_temp_c ? fmt(r.peak_soc_temp_c) : "–"}</td><td>${r.peak_ram_mb ?? "–"}</td>` +
     `<td class="ans" title="${(r.answer || "").replace(/"/g, "&quot;")}">${r.answer || ""}</td>`;
-  $("histBody").prepend(tr);
+  return tr;
+}
+
+function histHay(r) {
+  return [new Date(r.ts * 1000).toLocaleString(), r.device, r.runtime || "llama.cpp", r.engine,
+          r.config, r.imt || "native", r.cached ? "cached" : "serial", bk(r),
+          r.enc_backend, r.dec_backend, r.answer, r.answer_gt, r.question, r.image]
+         .filter(Boolean).join(" ").toLowerCase();
+}
+
+function pagerBtn(label, page, current, disabled) {
+  const b = document.createElement("button");
+  b.textContent = label;
+  b.disabled = !!disabled;
+  b.style.cssText = "padding:3px 9px;border-radius:5px;border:1px solid rgba(255,255,255,.14);" +
+    "background:" + (current ? "rgba(42,120,214,.35)" : "transparent") + ";color:inherit;cursor:pointer;font:inherit;" +
+    (disabled ? "opacity:.35;cursor:default;" : "");
+  if (!disabled && !current) b.onclick = () => { histPage = page; renderHist(); };
+  return b;
+}
+
+function renderHist() {
+  const filtered = histQuery ? HIST.filter(r => histHay(r).includes(histQuery)) : HIST;
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  histPage = Math.min(Math.max(1, histPage), pages);
+  const body = $("histBody");
+  body.innerHTML = "";
+  filtered.slice((histPage - 1) * PAGE_SIZE, histPage * PAGE_SIZE).forEach(r => body.appendChild(histRowEl(r)));
+  $("histEmpty").style.display = HIST.length ? "none" : "";
+
+  const pg = $("histPager");
+  pg.innerHTML = "";
+  if (filtered.length > PAGE_SIZE || histQuery) {
+    pg.appendChild(pagerBtn("‹", histPage - 1, false, histPage === 1));
+    // windowed page numbers: 1 … p-1 p p+1 … N
+    const want = new Set([1, 2, histPage - 1, histPage, histPage + 1, pages - 1, pages]);
+    let last = 0;
+    for (let p = 1; p <= pages; p++) {
+      if (!want.has(p)) continue;
+      if (p - last > 1) { const gap = document.createElement("span"); gap.textContent = "…"; gap.style.opacity = .5; pg.appendChild(gap); }
+      pg.appendChild(pagerBtn(String(p), p, p === histPage, false));
+      last = p;
+    }
+    pg.appendChild(pagerBtn("›", histPage + 1, false, histPage === pages));
+    const info = document.createElement("span");
+    info.style.cssText = "margin-right:8px;opacity:.6";
+    info.textContent = `${filtered.length} run${filtered.length === 1 ? "" : "s"}` +
+      (histQuery ? ` (of ${HIST.length})` : "") + ` · page ${histPage}/${pages} · ${PAGE_SIZE}/page`;
+    pg.prepend(info);
+  }
+}
+
+function addRow(r) {   // live runs land here — newest first, stay on current view
+  HIST.unshift(r);
+  renderHist();
 }
 async function loadHistory() {
   const h = await (await fetch("/api/runs")).json();
-  h.runs.forEach(addRow);
-  if (h.runs.length) { $("histEmpty").style.display = "none"; render(h.runs[h.runs.length - 1]); }
+  HIST = h.runs.slice().reverse();   // ledger is chronological; view is newest-first
+  renderHist();
+  if (h.runs.length) render(h.runs[h.runs.length - 1]);
 }
 </script>
 </body>

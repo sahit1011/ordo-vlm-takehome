@@ -127,7 +127,7 @@ dashboard/app.py` (live console at :8090, warm-on-drop caching built in) or
 
 ## 4. Results
 
-### Quantization ladder (Qwen2.5-VL-3B family + champion, Mac accuracy @576, dev set n=24)
+### Quantization ladder (Qwen2.5-VL-3B family, synthetic dev set n=24 — champion ladder re-measured on the 30 real photos, §4/Day 4)
 
 | Precision | Size | Accuracy | GPU prefill t/s | GPU decode t/s |
 |---|---|---|---|---|

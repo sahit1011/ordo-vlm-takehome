@@ -39,8 +39,11 @@ ENCODE_RE = re.compile(r"(?:image|slice).{0,40}?(?:encod|process)\w*\s+in\s+(\d+
 ENGINES = {
     "phone-gpu": {"dir": "ocl", "ld": f"{PHONE_DIR}/ocl:/vendor/lib64", "ngl": "99",
                   "runtime": "llama.cpp", "device": "Adreno GPU (OpenCL)", "available": True},
-    "phone-cpu": {"dir": "cpu", "ld": f"{PHONE_DIR}/cpu", "ngl": None,
-                  "runtime": "llama.cpp", "device": "CPU (i8mm/KleidiAI)", "available": True},
+    # CPU engine runs the OCL build with -ngl 0: the dedicated cpu-build binary
+    # has a pathological decode (0.3-0.6 t/s; same silicon via ocl-build -ngl 0
+    # decodes ~30 t/s — llama-bench A/B'd). Root cause in the cpu build TBD.
+    "phone-cpu": {"dir": "ocl", "ld": f"{PHONE_DIR}/ocl:/vendor/lib64", "ngl": "0",
+                  "runtime": "llama.cpp", "device": "CPU (ocl build, -ngl 0)", "available": True},
     "phone-compat": {"dir": "compat", "ld": f"{PHONE_DIR}/compat", "ngl": None,
                      "runtime": "llama.cpp", "device": "CPU portable (any arm64 Android 8+)", "available": True},
     "mac":       {"runtime": "llama.cpp", "device": "M3 Pro Metal (dev ref)", "available": True},

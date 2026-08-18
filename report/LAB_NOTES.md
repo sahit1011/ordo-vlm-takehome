@@ -819,9 +819,19 @@ reading @576+cache. Champion's phone token curve now: 96→11, 128→12, 256→1
 
 - [x] Encoder A/B on phone: mtmd on OpenCL vs CPU — done (7.8 vs 22.6 s; and
       per-model op-gap map: LFM2 both sizes + Smol2.2B fall back, log-confirmed)
-- [x] Phone CPU decode pathology: root-caused — the 0.4 t/s signature is
-      *offloaded-but-unsupported weight types* (Q2_K ablation: ngl99 0.43 vs
-      ngl0 30 t/s); pure-CPU decode is healthy
+- [x] Phone CPU decode pathology: TWO distinct causes, one still open. (1) The
+      0.4 t/s signature on "GPU" runs = offloaded-but-unsupported weight types
+      (Q2_K ablation: ngl99 0.43 vs ngl0 30 t/s). (2) The tuned-CPU *build
+      binary* has its own pathological decode — resurfaced in the CPU-only
+      trio (smol500: 0.3–0.6 t/s, prefill 11–20 t/s, cpu/cpu labels, no GPU
+      anywhere) while the *ocl build at -ngl 0* decodes ~30 t/s on the same
+      silicon. Earlier "root-caused" claim was half right. FIX SHIPPED: the
+      dashboard's phone-cpu engine now runs the ocl build with -ngl 0 (honest
+      CPU physics); cpu-build root cause (suspect: KleidiAI repack path or
+      -march=armv8.7 flags) documented open. Bench A/B landed: cpu build
+      pp256 = 31.0 t/s, **tg32 = 0.45 t/s** — decode-only defect, isolated,
+      67× vs the ocl binary at -ngl 0 (30 t/s) on identical silicon. Trio
+      re-run on the fixed engine.
 - [x] Full ladder on phone with thermal protocol — done (Q4_0/Q8_0 25/30,
       Q2_K CPU-bound, BF16 probe, MXFP4 Metal-only)
 - [x] Stress suite (Part 4) — done day 3
