@@ -98,7 +98,7 @@ def encode_ms_since_last():
     return sum(hits) if hits else None
 
 
-def stop_server():
+def stop_server(sweep_mac: bool = False):
     if state.get("mac_proc"):
         state["mac_proc"].terminate()
         try:
@@ -106,8 +106,11 @@ def stop_server():
         except subprocess.TimeoutExpired:
             state["mac_proc"].kill()
         state["mac_proc"] = None
-    # sweep mac llama-servers orphaned by a previous app instance
-    subprocess.run(["pkill", "-f", "build/bin/llama-server"], capture_output=True)
+    if sweep_mac:
+        # sweep mac llama-servers orphaned by a previous app instance — ONLY
+        # when we're about to bind the mac port ourselves; otherwise this
+        # kills harness-owned local servers (it did — see lab notes)
+        subprocess.run(["pkill", "-f", "build/bin/llama-server"], capture_output=True)
     if phone_connected():
         adb("shell", "pkill", "llama-server")
     state.update(ready=False, engine=None, config=None, load_s=None)
@@ -177,7 +180,7 @@ def start_server(engine: str = Form(...), config: str = Form(...),
             return JSONResponse({"error": f"runtime '{engine}' is not integrated yet — see lab notes roadmap"},
                                 status_code=400)
         cfg = CONFIGS[config]
-        stop_server()
+        stop_server(sweep_mac=(engine == "mac"))
         extra = f"--image-max-tokens {imt}" if imt else ""
         t0 = time.monotonic()
         if engine == "mac":
@@ -185,7 +188,8 @@ def start_server(engine: str = Form(...), config: str = Form(...),
             log.parent.mkdir(parents=True, exist_ok=True)
             args = [str(MAC_BIN), "-m", str(ROOT / "models" / cfg["model"]),
                     "--mmproj", str(ROOT / "models" / cfg["mmproj"]),
-                    "--host", "127.0.0.1", "--port", str(MAC_PORT), "-c", "8192"]
+                    "--host", "127.0.0.1", "--port", str(MAC_PORT), "-c", "8192",
+                 "-np", "1"]
             if imt:
                 args += ["--image-max-tokens", str(imt)]
             state["mac_proc"] = subprocess.Popen(args, stdout=open(log, "w"),
@@ -202,7 +206,7 @@ def start_server(engine: str = Form(...), config: str = Form(...),
             cmd = (f"cd {PHONE_DIR}/{e['dir']} && "
                    f"nohup env LD_LIBRARY_PATH={e['ld']} ./llama-server -m ../models/{cfg['model']} "
                    f"--mmproj ../models/{cfg['mmproj']} "
-                   f"--host 127.0.0.1 --port {PHONE_PORT} -t {threads} -c 8192 {ngl} {extra} "
+                   f"--host 127.0.0.1 --port {PHONE_PORT} -t {threads} -c 8192 -np 1 {ngl} {extra} "
                    f"> {PHONE_DIR}/server.log 2>&1 < /dev/null &")
             # never wait on adb-shell-with-& (adbd holds the session open)
             launcher = subprocess.Popen(["adb", "shell", cmd],
@@ -224,7 +228,8 @@ def start_server(engine: str = Form(...), config: str = Form(...),
 
 @app.post("/api/infer")
 def infer(image: UploadFile = File(...), question: str = Form(...),
-          max_tokens: int = Form(64), answer_gt: str = Form(None)):
+          max_tokens: int = Form(64), answer_gt: str = Form(None),
+          accept_also: str = Form("")):
     with lock:
         if not state["ready"]:
             return JSONResponse({"error": "start a server first"}, status_code=409)
@@ -252,7 +257,7 @@ def infer(image: UploadFile = File(...), question: str = Form(...),
             "imt": state["imt"], "threads": state["threads"],
             "image": path.name, "question": question,
             "answer": res["text"],
-            "correct": score.is_correct(res["text"], answer_gt, "") if answer_gt else None,
+            "correct": score.is_correct(res["text"], answer_gt, accept_also) if answer_gt else None,
             "ttft_s": res["ttft_client_s"], "total_s": res["total_s"],
             "encode_ms": enc,
             "prefill_ms": round(prompt_ms - enc) if (prompt_ms and enc) else prompt_ms,
@@ -272,9 +277,32 @@ def infer(image: UploadFile = File(...), question: str = Form(...),
         return rec
 
 
+@app.post("/api/warm")
+def warm(image: UploadFile = File(...)):
+    """Two-phase flow, phase A: encode + image-prefill into the KV cache while
+    the user is still typing/speaking. Perceived TTFT then = text prefill only."""
+    if not state["ready"]:
+        return JSONResponse({"error": "start a server first"}, status_code=409)
+    UPLOADS.mkdir(parents=True, exist_ok=True)
+    path = UPLOADS / "warm_current.jpg"
+    path.write_bytes(image.file.read())
+    url = f"http://127.0.0.1:{MAC_PORT if state['engine'] == 'mac' else LOCAL_PORT}"
+    t0 = time.monotonic()
+    try:
+        requests.post(f"{url}/v1/chat/completions", timeout=1200, json={
+            "messages": [{"role": "user", "content": [
+                {"type": "image_url", "image_url": {"url": llm.image_data_url(str(path))}},
+                {"type": "text", "text": ""}]}],
+            "max_tokens": 1, "temperature": 0.0, "cache_prompt": True})
+    except requests.RequestException as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+    state["log_offset"] = len(read_server_log())  # warm's encode isn't the query's
+    return {"ok": True, "warm_s": round(time.monotonic() - t0, 2)}
+
+
 @app.post("/api/infer_stream")
 def infer_stream(image: UploadFile = File(...), question: str = Form(...),
-                 max_tokens: int = Form(64)):
+                 max_tokens: int = Form(64), cached: int = Form(0)):
     """Same as /api/infer but streams SSE: token events live, then a done record."""
     if not state["ready"]:
         return JSONResponse({"error": "start a server first"}, status_code=409)
@@ -297,7 +325,10 @@ def infer_stream(image: UploadFile = File(...), question: str = Form(...),
                 {"type": "image_url", "image_url": {"url": llm.image_data_url(str(path))}},
                 {"type": "text", "text": question}]}],
             "max_tokens": max_tokens, "temperature": 0.0, "seed": 42,
-            "stream": True, "timings_per_token": True, "cache_prompt": False,
+            "stream": True, "timings_per_token": True,
+            # measurement mode: no cache (honest serial numbers);
+            # product mode (warm-on-drop): cache hit -> perceived TTFT
+            "cache_prompt": bool(cached),
         }
         t0 = time.monotonic()
         t_first = None
@@ -333,7 +364,7 @@ def infer_stream(image: UploadFile = File(...), question: str = Form(...),
         rec = {
             "ts": time.time(), "engine": state["engine"], "config": state["config"],
             "runtime": ENGINES.get(state["engine"], {}).get("runtime"),
-            "imt": state["imt"], "threads": state["threads"],
+            "imt": state["imt"], "threads": state["threads"], "cached": bool(cached),
             "image": path.name, "question": question, "answer": "".join(pieces).strip(),
             "correct": None,
             "ttft_s": (t_first - t0) if t_first else None,

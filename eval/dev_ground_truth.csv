@@ -1,0 +1,25 @@
+id,file,category,difficulty,conditions,question,answer,accept_also,notes
+d00,dev_photos/d00_menu_easy.jpg,menu,easy,synthetic,How much does the Mango Lassi cost?,170,rs 170|₹170,dev-set
+d01,dev_photos/d01_menu_medium.jpg,menu,medium,synthetic,How much does the Paneer Tikka cost?,110,rs 110|₹110,dev-set
+d02,dev_photos/d02_menu_hard.jpg,menu,hard,synthetic,How much does the Idli Sambar cost?,390,rs 390|₹390,dev-set
+d03,dev_photos/d03_menu_easy.jpg,menu,easy,synthetic,How much does the Gobi Manchurian cost?,90,rs 90|₹90,dev-set
+d04,dev_photos/d04_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,630,630.00|rs 630,dev-set
+d05,dev_photos/d05_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,781,781.00|rs 781,dev-set
+d06,dev_photos/d06_receipt_hard.jpg,receipt,hard,synthetic,What is the total on the receipt?,808,808.00|rs 808,dev-set
+d07,dev_photos/d07_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,530,530.00|rs 530,dev-set
+d08,dev_photos/d08_medicine_easy.jpg,medicine,easy,synthetic,What is the expiry date on the Cetrizine 10?,JAN 2028,JAN 202028,dev-set
+d09,dev_photos/d09_medicine_medium.jpg,medicine,medium,synthetic,What is the expiry date on the Cetrizine 10?,JAN 2028,JAN 202028,dev-set
+d10,dev_photos/d10_medicine_hard.jpg,medicine,hard,synthetic,What is the expiry date on the Cetrizine 10?,JAN 2028,JAN 202028,dev-set
+d11,dev_photos/d11_street-sign_easy.jpg,street-sign,easy,synthetic,How far is Residency Road?,3 km,3km|3 kilometers,dev-set
+d12,dev_photos/d12_street-sign_medium.jpg,street-sign,medium,synthetic,How far is Residency Road?,3 km,3km|3 kilometers,dev-set
+d13,dev_photos/d13_street-sign_easy.jpg,street-sign,easy,synthetic,How far is Brigade Road?,2 km,2km|2 kilometers,dev-set
+d14,dev_photos/d14_handwritten_hard.jpg,handwritten,hard,synthetic,What does the note remind me to do?,call plumber,4pm,dev-set
+d15,dev_photos/d15_handwritten_medium.jpg,handwritten,medium,synthetic,What does the note remind me to do?,buy milk and eggs,eggs,dev-set
+d16,dev_photos/d16_handwritten_easy.jpg,handwritten,easy,synthetic,What does the note remind me to do?,gym,6:30,dev-set
+d17,dev_photos/d17_whiteboard_medium.jpg,whiteboard,medium,synthetic,What is the first item on the whiteboard?,fix login bug,bug,dev-set
+d18,dev_photos/d18_whiteboard_hard.jpg,whiteboard,hard,synthetic,What is the first item on the whiteboard?,review PR 42,42,dev-set
+d19,dev_photos/d19_book-spines_easy.jpg,book-spines,easy,synthetic,What is the title of the leftmost book?,Atomic Habits,Atomic,dev-set
+d20,dev_photos/d20_book-spines_medium.jpg,book-spines,medium,synthetic,What is the title of the leftmost book?,Thinking Fast and Slow,Thinking,dev-set
+d21,dev_photos/d21_appliance_easy.jpg,appliance,easy,synthetic,What temperature is the AC set to?,26,26 c|26°c|26 degrees,dev-set
+d22,dev_photos/d22_appliance_hard.jpg,appliance,hard,synthetic,What temperature is the AC set to?,21,21 c|21°c|21 degrees,dev-set
+d23,dev_photos/d23_appliance_medium.jpg,appliance,medium,synthetic,What temperature is the AC set to?,23,23 c|23°c|23 degrees,dev-set

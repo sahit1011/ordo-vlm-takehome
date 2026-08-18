@@ -1,0 +1,193 @@
+id,file,category,difficulty,conditions,question,answer,accept_also,notes
+d00,dev_photos/d00_menu_easy.jpg,menu,easy,synthetic,How much does the Mutton Korma cost?,380,rs 380|₹380,dev-set
+d01,dev_photos/d01_menu_medium.jpg,menu,medium,synthetic,How much does the Onion Pakoda cost?,90,rs 90|₹90,dev-set
+d02,dev_photos/d02_menu_hard.jpg,menu,hard,synthetic,How much does the Chole Bhature cost?,380,rs 380|₹380,dev-set
+d03,dev_photos/d03_menu_easy.jpg,menu,easy,synthetic,How much does the Tomato Soup cost?,60,rs 60|₹60,dev-set
+d04,dev_photos/d04_menu_medium.jpg,menu,medium,synthetic,How much does the Veg Pulao cost?,70,rs 70|₹70,dev-set
+d05,dev_photos/d05_menu_easy.jpg,menu,easy,synthetic,How much does the Fish Fry cost?,340,rs 340|₹340,dev-set
+d06,dev_photos/d06_menu_hard.jpg,menu,hard,synthetic,How much does the Tomato Soup cost?,170,rs 170|₹170,dev-set
+d07,dev_photos/d07_menu_medium.jpg,menu,medium,synthetic,How much does the Chole Bhature cost?,290,rs 290|₹290,dev-set
+d08,dev_photos/d08_menu_easy.jpg,menu,easy,synthetic,How much does the Veg Pulao cost?,100,rs 100|₹100,dev-set
+d09,dev_photos/d09_menu_medium.jpg,menu,medium,synthetic,How much does the Curd Rice cost?,300,rs 300|₹300,dev-set
+d10,dev_photos/d10_menu_hard.jpg,menu,hard,synthetic,How much does the Fish Fry cost?,280,rs 280|₹280,dev-set
+d11,dev_photos/d11_menu_easy.jpg,menu,easy,synthetic,How much does the Masala Chai cost?,200,rs 200|₹200,dev-set
+d12,dev_photos/d12_menu_medium.jpg,menu,medium,synthetic,How much does the Chole Bhature cost?,170,rs 170|₹170,dev-set
+d13,dev_photos/d13_menu_easy.jpg,menu,easy,synthetic,How much does the Egg Curry cost?,300,rs 300|₹300,dev-set
+d14,dev_photos/d14_menu_hard.jpg,menu,hard,synthetic,How much does the Curd Rice cost?,390,rs 390|₹390,dev-set
+d15,dev_photos/d15_menu_medium.jpg,menu,medium,synthetic,How much does the Fish Fry cost?,340,rs 340|₹340,dev-set
+d16,dev_photos/d16_menu_easy.jpg,menu,easy,synthetic,How much does the Badam Milk cost?,210,rs 210|₹210,dev-set
+d17,dev_photos/d17_menu_medium.jpg,menu,medium,synthetic,How much does the Veg Pulao cost?,390,rs 390|₹390,dev-set
+d18,dev_photos/d18_menu_hard.jpg,menu,hard,synthetic,How much does the Mutton Korma cost?,270,rs 270|₹270,dev-set
+d19,dev_photos/d19_menu_easy.jpg,menu,easy,synthetic,How much does the Curd Rice cost?,140,rs 140|₹140,dev-set
+d20,dev_photos/d20_menu_medium.jpg,menu,medium,synthetic,How much does the Chole Bhature cost?,280,rs 280|₹280,dev-set
+d21,dev_photos/d21_menu_easy.jpg,menu,easy,synthetic,How much does the Mutton Korma cost?,320,rs 320|₹320,dev-set
+d22,dev_photos/d22_menu_hard.jpg,menu,hard,synthetic,How much does the Chole Bhature cost?,350,rs 350|₹350,dev-set
+d23,dev_photos/d23_menu_medium.jpg,menu,medium,synthetic,How much does the Onion Pakoda cost?,50,rs 50|₹50,dev-set
+d24,dev_photos/d24_menu_easy.jpg,menu,easy,synthetic,How much does the Badam Milk cost?,100,rs 100|₹100,dev-set
+d25,dev_photos/d25_menu_medium.jpg,menu,medium,synthetic,How much does the Fish Fry cost?,130,rs 130|₹130,dev-set
+d26,dev_photos/d26_menu_hard.jpg,menu,hard,synthetic,How much does the Masala Chai cost?,270,rs 270|₹270,dev-set
+d27,dev_photos/d27_menu_easy.jpg,menu,easy,synthetic,How much does the Onion Pakoda cost?,370,rs 370|₹370,dev-set
+d28,dev_photos/d28_menu_medium.jpg,menu,medium,synthetic,How much does the Veg Pulao cost?,190,rs 190|₹190,dev-set
+d29,dev_photos/d29_menu_easy.jpg,menu,easy,synthetic,How much does the Masala Chai cost?,210,rs 210|₹210,dev-set
+d30,dev_photos/d30_menu_hard.jpg,menu,hard,synthetic,How much does the Masala Chai cost?,230,rs 230|₹230,dev-set
+d31,dev_photos/d31_menu_medium.jpg,menu,medium,synthetic,How much does the Mutton Korma cost?,280,rs 280|₹280,dev-set
+d32,dev_photos/d32_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,396,396.00|rs 396,dev-set
+d33,dev_photos/d33_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,749,749.00|rs 749,dev-set
+d34,dev_photos/d34_receipt_hard.jpg,receipt,hard,synthetic,What is the total on the receipt?,593,593.00|rs 593,dev-set
+d35,dev_photos/d35_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,491,491.00|rs 491,dev-set
+d36,dev_photos/d36_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,673,673.00|rs 673,dev-set
+d37,dev_photos/d37_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,556,556.00|rs 556,dev-set
+d38,dev_photos/d38_receipt_hard.jpg,receipt,hard,synthetic,What is the total on the receipt?,612,612.00|rs 612,dev-set
+d39,dev_photos/d39_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,597,597.00|rs 597,dev-set
+d40,dev_photos/d40_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,769,769.00|rs 769,dev-set
+d41,dev_photos/d41_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,685,685.00|rs 685,dev-set
+d42,dev_photos/d42_receipt_hard.jpg,receipt,hard,synthetic,What is the total on the receipt?,850,850.00|rs 850,dev-set
+d43,dev_photos/d43_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,700,700.00|rs 700,dev-set
+d44,dev_photos/d44_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,530,530.00|rs 530,dev-set
+d45,dev_photos/d45_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,349,349.00|rs 349,dev-set
+d46,dev_photos/d46_receipt_hard.jpg,receipt,hard,synthetic,What is the total on the receipt?,555,555.00|rs 555,dev-set
+d47,dev_photos/d47_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,908,908.00|rs 908,dev-set
+d48,dev_photos/d48_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,788,788.00|rs 788,dev-set
+d49,dev_photos/d49_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,785,785.00|rs 785,dev-set
+d50,dev_photos/d50_receipt_hard.jpg,receipt,hard,synthetic,What is the total on the receipt?,699,699.00|rs 699,dev-set
+d51,dev_photos/d51_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,652,652.00|rs 652,dev-set
+d52,dev_photos/d52_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,1049,1049.00|rs 1049,dev-set
+d53,dev_photos/d53_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,494,494.00|rs 494,dev-set
+d54,dev_photos/d54_receipt_hard.jpg,receipt,hard,synthetic,What is the total on the receipt?,553,553.00|rs 553,dev-set
+d55,dev_photos/d55_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,749,749.00|rs 749,dev-set
+d56,dev_photos/d56_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,638,638.00|rs 638,dev-set
+d57,dev_photos/d57_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,654,654.00|rs 654,dev-set
+d58,dev_photos/d58_receipt_hard.jpg,receipt,hard,synthetic,What is the total on the receipt?,434,434.00|rs 434,dev-set
+d59,dev_photos/d59_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,692,692.00|rs 692,dev-set
+d60,dev_photos/d60_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,452,452.00|rs 452,dev-set
+d61,dev_photos/d61_receipt_easy.jpg,receipt,easy,synthetic,What is the total on the receipt?,530,530.00|rs 530,dev-set
+d62,dev_photos/d62_receipt_hard.jpg,receipt,hard,synthetic,What is the total on the receipt?,694,694.00|rs 694,dev-set
+d63,dev_photos/d63_receipt_medium.jpg,receipt,medium,synthetic,What is the total on the receipt?,429,429.00|rs 429,dev-set
+d64,dev_photos/d64_medicine_easy.jpg,medicine,easy,synthetic,What is the expiry date on the Allegra 120?,MAY 2028,MAY 202028,dev-set
+d65,dev_photos/d65_medicine_medium.jpg,medicine,medium,synthetic,What is the expiry date on the Omez 20?,DEC 2027,DEC 202027,dev-set
+d66,dev_photos/d66_medicine_hard.jpg,medicine,hard,synthetic,What is the expiry date on the Omez 20?,DEC 2027,DEC 202027,dev-set
+d67,dev_photos/d67_medicine_easy.jpg,medicine,easy,synthetic,What is the expiry date on the Omez 20?,DEC 2027,DEC 202027,dev-set
+d68,dev_photos/d68_medicine_medium.jpg,medicine,medium,synthetic,What is the expiry date on the Omez 20?,DEC 2027,DEC 202027,dev-set
+d69,dev_photos/d69_medicine_easy.jpg,medicine,easy,synthetic,What is the expiry date on the Crocin 500?,SEP 2027,SEP 202027,dev-set
+d70,dev_photos/d70_medicine_hard.jpg,medicine,hard,synthetic,What is the expiry date on the Allegra 120?,MAY 2028,MAY 202028,dev-set
+d71,dev_photos/d71_medicine_medium.jpg,medicine,medium,synthetic,What is the expiry date on the Omez 20?,DEC 2027,DEC 202027,dev-set
+d72,dev_photos/d72_medicine_easy.jpg,medicine,easy,synthetic,What is the expiry date on the Omez 20?,DEC 2027,DEC 202027,dev-set
+d73,dev_photos/d73_medicine_medium.jpg,medicine,medium,synthetic,What is the expiry date on the Allegra 120?,MAY 2028,MAY 202028,dev-set
+d74,dev_photos/d74_medicine_hard.jpg,medicine,hard,synthetic,What is the expiry date on the Allegra 120?,MAY 2028,MAY 202028,dev-set
+d75,dev_photos/d75_medicine_easy.jpg,medicine,easy,synthetic,What is the expiry date on the Zincovit?,FEB 2028,FEB 202028,dev-set
+d76,dev_photos/d76_medicine_medium.jpg,medicine,medium,synthetic,What is the expiry date on the Omez 20?,DEC 2027,DEC 202027,dev-set
+d77,dev_photos/d77_medicine_easy.jpg,medicine,easy,synthetic,What is the expiry date on the Omez 20?,DEC 2027,DEC 202027,dev-set
+d78,dev_photos/d78_medicine_hard.jpg,medicine,hard,synthetic,What is the expiry date on the Omez 20?,DEC 2027,DEC 202027,dev-set
+d79,dev_photos/d79_medicine_medium.jpg,medicine,medium,synthetic,What is the expiry date on the Allegra 120?,MAY 2028,MAY 202028,dev-set
+d80,dev_photos/d80_medicine_easy.jpg,medicine,easy,synthetic,What is the expiry date on the Allegra 120?,MAY 2028,MAY 202028,dev-set
+d81,dev_photos/d81_medicine_medium.jpg,medicine,medium,synthetic,What is the expiry date on the Allegra 120?,MAY 2028,MAY 202028,dev-set
+d82,dev_photos/d82_medicine_hard.jpg,medicine,hard,synthetic,What is the expiry date on the Allegra 120?,MAY 2028,MAY 202028,dev-set
+d83,dev_photos/d83_medicine_easy.jpg,medicine,easy,synthetic,What is the expiry date on the Crocin 500?,SEP 2027,SEP 202027,dev-set
+d84,dev_photos/d84_medicine_medium.jpg,medicine,medium,synthetic,What is the expiry date on the Crocin 500?,SEP 2027,SEP 202027,dev-set
+d85,dev_photos/d85_medicine_easy.jpg,medicine,easy,synthetic,What is the expiry date on the Zincovit?,FEB 2028,FEB 202028,dev-set
+d86,dev_photos/d86_medicine_hard.jpg,medicine,hard,synthetic,What is the expiry date on the Allegra 120?,MAY 2028,MAY 202028,dev-set
+d87,dev_photos/d87_medicine_medium.jpg,medicine,medium,synthetic,What is the expiry date on the Crocin 500?,SEP 2027,SEP 202027,dev-set
+d88,dev_photos/d88_street-sign_easy.jpg,street-sign,easy,synthetic,How far is Baner Road?,5 km,5km|5 kilometers,dev-set
+d89,dev_photos/d89_street-sign_medium.jpg,street-sign,medium,synthetic,How far is Baner Road?,5 km,5km|5 kilometers,dev-set
+d90,dev_photos/d90_street-sign_hard.jpg,street-sign,hard,synthetic,How far is Park Street?,2 km,2km|2 kilometers,dev-set
+d91,dev_photos/d91_street-sign_easy.jpg,street-sign,easy,synthetic,How far is Park Street?,2 km,2km|2 kilometers,dev-set
+d92,dev_photos/d92_street-sign_medium.jpg,street-sign,medium,synthetic,How far is FC Road?,5 km,5km|5 kilometers,dev-set
+d93,dev_photos/d93_street-sign_easy.jpg,street-sign,easy,synthetic,How far is Linking Road?,5 km,5km|5 kilometers,dev-set
+d94,dev_photos/d94_street-sign_hard.jpg,street-sign,hard,synthetic,How far is Baner Road?,5 km,5km|5 kilometers,dev-set
+d95,dev_photos/d95_street-sign_medium.jpg,street-sign,medium,synthetic,How far is Baner Road?,5 km,5km|5 kilometers,dev-set
+d96,dev_photos/d96_street-sign_easy.jpg,street-sign,easy,synthetic,How far is FC Road?,2 km,2km|2 kilometers,dev-set
+d97,dev_photos/d97_street-sign_medium.jpg,street-sign,medium,synthetic,How far is Anna Salai?,3 km,3km|3 kilometers,dev-set
+d98,dev_photos/d98_street-sign_hard.jpg,street-sign,hard,synthetic,How far is Anna Salai?,5 km,5km|5 kilometers,dev-set
+d99,dev_photos/d99_street-sign_easy.jpg,street-sign,easy,synthetic,How far is Linking Road?,1 km,1km|1 kilometers,dev-set
+d100,dev_photos/d100_street-sign_medium.jpg,street-sign,medium,synthetic,How far is Baner Road?,5 km,5km|5 kilometers,dev-set
+d101,dev_photos/d101_street-sign_easy.jpg,street-sign,easy,synthetic,How far is Baner Road?,2 km,2km|2 kilometers,dev-set
+d102,dev_photos/d102_street-sign_hard.jpg,street-sign,hard,synthetic,How far is Linking Road?,2 km,2km|2 kilometers,dev-set
+d103,dev_photos/d103_street-sign_medium.jpg,street-sign,medium,synthetic,How far is Anna Salai?,1 km,1km|1 kilometers,dev-set
+d104,dev_photos/d104_street-sign_easy.jpg,street-sign,easy,synthetic,How far is Anna Salai?,2 km,2km|2 kilometers,dev-set
+d105,dev_photos/d105_street-sign_medium.jpg,street-sign,medium,synthetic,How far is Linking Road?,2 km,2km|2 kilometers,dev-set
+d106,dev_photos/d106_street-sign_hard.jpg,street-sign,hard,synthetic,How far is Baner Road?,1 km,1km|1 kilometers,dev-set
+d107,dev_photos/d107_street-sign_easy.jpg,street-sign,easy,synthetic,How far is Park Street?,3 km,3km|3 kilometers,dev-set
+d108,dev_photos/d108_street-sign_medium.jpg,street-sign,medium,synthetic,How far is Park Street?,3 km,3km|3 kilometers,dev-set
+d109,dev_photos/d109_street-sign_easy.jpg,street-sign,easy,synthetic,How far is Park Street?,1 km,1km|1 kilometers,dev-set
+d110,dev_photos/d110_street-sign_hard.jpg,street-sign,hard,synthetic,How far is FC Road?,1 km,1km|1 kilometers,dev-set
+d111,dev_photos/d111_street-sign_medium.jpg,street-sign,medium,synthetic,How far is Linking Road?,5 km,5km|5 kilometers,dev-set
+d112,dev_photos/d112_handwritten_easy.jpg,handwritten,easy,synthetic,What does the note remind me to do?,dentist tuesday 10am,10am,dev-set
+d113,dev_photos/d113_handwritten_medium.jpg,handwritten,medium,synthetic,What does the note remind me to do?,dentist tuesday 10am,10am,dev-set
+d114,dev_photos/d114_handwritten_hard.jpg,handwritten,hard,synthetic,What does the note remind me to do?,pay electricity bill,bill,dev-set
+d115,dev_photos/d115_handwritten_easy.jpg,handwritten,easy,synthetic,What does the note remind me to do?,pay electricity bill,bill,dev-set
+d116,dev_photos/d116_handwritten_medium.jpg,handwritten,medium,synthetic,What does the note remind me to do?,call plumber,4pm,dev-set
+d117,dev_photos/d117_handwritten_easy.jpg,handwritten,easy,synthetic,What does the note remind me to do?,call plumber,4pm,dev-set
+d118,dev_photos/d118_handwritten_hard.jpg,handwritten,hard,synthetic,What does the note remind me to do?,dentist tuesday 10am,10am,dev-set
+d119,dev_photos/d119_handwritten_medium.jpg,handwritten,medium,synthetic,What does the note remind me to do?,call plumber,4pm,dev-set
+d120,dev_photos/d120_handwritten_easy.jpg,handwritten,easy,synthetic,What does the note remind me to do?,dentist tuesday 10am,10am,dev-set
+d121,dev_photos/d121_handwritten_medium.jpg,handwritten,medium,synthetic,What does the note remind me to do?,call plumber,4pm,dev-set
+d122,dev_photos/d122_handwritten_hard.jpg,handwritten,hard,synthetic,What does the note remind me to do?,dentist tuesday 10am,10am,dev-set
+d123,dev_photos/d123_handwritten_easy.jpg,handwritten,easy,synthetic,What does the note remind me to do?,dentist tuesday 10am,10am,dev-set
+d124,dev_photos/d124_handwritten_medium.jpg,handwritten,medium,synthetic,What does the note remind me to do?,dentist tuesday 10am,10am,dev-set
+d125,dev_photos/d125_handwritten_easy.jpg,handwritten,easy,synthetic,What does the note remind me to do?,pay electricity bill,bill,dev-set
+d126,dev_photos/d126_handwritten_hard.jpg,handwritten,hard,synthetic,What does the note remind me to do?,buy milk and eggs,eggs,dev-set
+d127,dev_photos/d127_handwritten_medium.jpg,handwritten,medium,synthetic,What does the note remind me to do?,gym,6:30,dev-set
+d128,dev_photos/d128_handwritten_easy.jpg,handwritten,easy,synthetic,What does the note remind me to do?,pay electricity bill,bill,dev-set
+d129,dev_photos/d129_handwritten_medium.jpg,handwritten,medium,synthetic,What does the note remind me to do?,call plumber,4pm,dev-set
+d130,dev_photos/d130_handwritten_hard.jpg,handwritten,hard,synthetic,What does the note remind me to do?,call plumber,4pm,dev-set
+d131,dev_photos/d131_handwritten_easy.jpg,handwritten,easy,synthetic,What does the note remind me to do?,buy milk and eggs,eggs,dev-set
+d132,dev_photos/d132_handwritten_medium.jpg,handwritten,medium,synthetic,What does the note remind me to do?,call plumber,4pm,dev-set
+d133,dev_photos/d133_handwritten_easy.jpg,handwritten,easy,synthetic,What does the note remind me to do?,gym,6:30,dev-set
+d134,dev_photos/d134_handwritten_hard.jpg,handwritten,hard,synthetic,What does the note remind me to do?,dentist tuesday 10am,10am,dev-set
+d135,dev_photos/d135_handwritten_medium.jpg,handwritten,medium,synthetic,What does the note remind me to do?,dentist tuesday 10am,10am,dev-set
+d136,dev_photos/d136_whiteboard_easy.jpg,whiteboard,easy,synthetic,What is the first item on the whiteboard?,fix login bug,bug,dev-set
+d137,dev_photos/d137_whiteboard_medium.jpg,whiteboard,medium,synthetic,What is the first item on the whiteboard?,demo Friday,Friday,dev-set
+d138,dev_photos/d138_whiteboard_hard.jpg,whiteboard,hard,synthetic,What is the first item on the whiteboard?,fix login bug,bug,dev-set
+d139,dev_photos/d139_whiteboard_easy.jpg,whiteboard,easy,synthetic,What is the first item on the whiteboard?,fix login bug,bug,dev-set
+d140,dev_photos/d140_whiteboard_medium.jpg,whiteboard,medium,synthetic,What is the first item on the whiteboard?,review PR 42,42,dev-set
+d141,dev_photos/d141_whiteboard_easy.jpg,whiteboard,easy,synthetic,What is the first item on the whiteboard?,fix login bug,bug,dev-set
+d142,dev_photos/d142_whiteboard_hard.jpg,whiteboard,hard,synthetic,What is the first item on the whiteboard?,standup 9:30,9:30,dev-set
+d143,dev_photos/d143_whiteboard_medium.jpg,whiteboard,medium,synthetic,What is the first item on the whiteboard?,review PR 42,42,dev-set
+d144,dev_photos/d144_whiteboard_easy.jpg,whiteboard,easy,synthetic,What is the first item on the whiteboard?,demo Friday,Friday,dev-set
+d145,dev_photos/d145_whiteboard_medium.jpg,whiteboard,medium,synthetic,What is the first item on the whiteboard?,review PR 42,42,dev-set
+d146,dev_photos/d146_whiteboard_hard.jpg,whiteboard,hard,synthetic,What is the first item on the whiteboard?,review PR 42,42,dev-set
+d147,dev_photos/d147_whiteboard_easy.jpg,whiteboard,easy,synthetic,What is the first item on the whiteboard?,standup 9:30,9:30,dev-set
+d148,dev_photos/d148_whiteboard_medium.jpg,whiteboard,medium,synthetic,What is the first item on the whiteboard?,deploy staging,staging,dev-set
+d149,dev_photos/d149_whiteboard_easy.jpg,whiteboard,easy,synthetic,What is the first item on the whiteboard?,deploy staging,staging,dev-set
+d150,dev_photos/d150_whiteboard_hard.jpg,whiteboard,hard,synthetic,What is the first item on the whiteboard?,review PR 42,42,dev-set
+d151,dev_photos/d151_whiteboard_medium.jpg,whiteboard,medium,synthetic,What is the first item on the whiteboard?,demo Friday,Friday,dev-set
+d152,dev_photos/d152_book-spines_easy.jpg,book-spines,easy,synthetic,What is the title of the leftmost book?,The Lean Startup,The,dev-set
+d153,dev_photos/d153_book-spines_medium.jpg,book-spines,medium,synthetic,What is the title of the leftmost book?,Sapiens,Sapiens,dev-set
+d154,dev_photos/d154_book-spines_hard.jpg,book-spines,hard,synthetic,What is the title of the leftmost book?,Deep Work,Deep,dev-set
+d155,dev_photos/d155_book-spines_easy.jpg,book-spines,easy,synthetic,What is the title of the leftmost book?,The Psychology of Money,The,dev-set
+d156,dev_photos/d156_book-spines_medium.jpg,book-spines,medium,synthetic,What is the title of the leftmost book?,Educated,Educated,dev-set
+d157,dev_photos/d157_book-spines_easy.jpg,book-spines,easy,synthetic,What is the title of the leftmost book?,Ikigai,Ikigai,dev-set
+d158,dev_photos/d158_book-spines_hard.jpg,book-spines,hard,synthetic,What is the title of the leftmost book?,Ikigai,Ikigai,dev-set
+d159,dev_photos/d159_book-spines_medium.jpg,book-spines,medium,synthetic,What is the title of the leftmost book?,Project Hail Mary,Project,dev-set
+d160,dev_photos/d160_book-spines_easy.jpg,book-spines,easy,synthetic,What is the title of the leftmost book?,Deep Work,Deep,dev-set
+d161,dev_photos/d161_book-spines_medium.jpg,book-spines,medium,synthetic,What is the title of the leftmost book?,The Lean Startup,The,dev-set
+d162,dev_photos/d162_book-spines_hard.jpg,book-spines,hard,synthetic,What is the title of the leftmost book?,Sapiens,Sapiens,dev-set
+d163,dev_photos/d163_book-spines_easy.jpg,book-spines,easy,synthetic,What is the title of the leftmost book?,Ikigai,Ikigai,dev-set
+d164,dev_photos/d164_book-spines_medium.jpg,book-spines,medium,synthetic,What is the title of the leftmost book?,The Lean Startup,The,dev-set
+d165,dev_photos/d165_book-spines_easy.jpg,book-spines,easy,synthetic,What is the title of the leftmost book?,Deep Work,Deep,dev-set
+d166,dev_photos/d166_book-spines_hard.jpg,book-spines,hard,synthetic,What is the title of the leftmost book?,The Lean Startup,The,dev-set
+d167,dev_photos/d167_book-spines_medium.jpg,book-spines,medium,synthetic,What is the title of the leftmost book?,The Psychology of Money,The,dev-set
+d168,dev_photos/d168_appliance_easy.jpg,appliance,easy,synthetic,What temperature is the AC set to?,21,21 c|21°c|21 degrees,dev-set
+d169,dev_photos/d169_appliance_medium.jpg,appliance,medium,synthetic,What temperature is the AC set to?,23,23 c|23°c|23 degrees,dev-set
+d170,dev_photos/d170_appliance_hard.jpg,appliance,hard,synthetic,What temperature is the AC set to?,21,21 c|21°c|21 degrees,dev-set
+d171,dev_photos/d171_appliance_easy.jpg,appliance,easy,synthetic,What temperature is the AC set to?,26,26 c|26°c|26 degrees,dev-set
+d172,dev_photos/d172_appliance_medium.jpg,appliance,medium,synthetic,What temperature is the AC set to?,26,26 c|26°c|26 degrees,dev-set
+d173,dev_photos/d173_appliance_easy.jpg,appliance,easy,synthetic,What temperature is the AC set to?,23,23 c|23°c|23 degrees,dev-set
+d174,dev_photos/d174_appliance_hard.jpg,appliance,hard,synthetic,What temperature is the AC set to?,21,21 c|21°c|21 degrees,dev-set
+d175,dev_photos/d175_appliance_medium.jpg,appliance,medium,synthetic,What temperature is the AC set to?,18,18 c|18°c|18 degrees,dev-set
+d176,dev_photos/d176_appliance_easy.jpg,appliance,easy,synthetic,What temperature is the AC set to?,21,21 c|21°c|21 degrees,dev-set
+d177,dev_photos/d177_appliance_medium.jpg,appliance,medium,synthetic,What temperature is the AC set to?,23,23 c|23°c|23 degrees,dev-set
+d178,dev_photos/d178_appliance_hard.jpg,appliance,hard,synthetic,What temperature is the AC set to?,26,26 c|26°c|26 degrees,dev-set
+d179,dev_photos/d179_appliance_easy.jpg,appliance,easy,synthetic,What temperature is the AC set to?,18,18 c|18°c|18 degrees,dev-set
+d180,dev_photos/d180_appliance_medium.jpg,appliance,medium,synthetic,What temperature is the AC set to?,26,26 c|26°c|26 degrees,dev-set
+d181,dev_photos/d181_appliance_easy.jpg,appliance,easy,synthetic,What temperature is the AC set to?,18,18 c|18°c|18 degrees,dev-set
+d182,dev_photos/d182_appliance_hard.jpg,appliance,hard,synthetic,What temperature is the AC set to?,21,21 c|21°c|21 degrees,dev-set
+d183,dev_photos/d183_appliance_medium.jpg,appliance,medium,synthetic,What temperature is the AC set to?,21,21 c|21°c|21 degrees,dev-set
+d184,dev_photos/d184_appliance_easy.jpg,appliance,easy,synthetic,What temperature is the AC set to?,23,23 c|23°c|23 degrees,dev-set
+d185,dev_photos/d185_appliance_medium.jpg,appliance,medium,synthetic,What temperature is the AC set to?,21,21 c|21°c|21 degrees,dev-set
+d186,dev_photos/d186_appliance_hard.jpg,appliance,hard,synthetic,What temperature is the AC set to?,26,26 c|26°c|26 degrees,dev-set
+d187,dev_photos/d187_appliance_easy.jpg,appliance,easy,synthetic,What temperature is the AC set to?,18,18 c|18°c|18 degrees,dev-set
+d188,dev_photos/d188_appliance_medium.jpg,appliance,medium,synthetic,What temperature is the AC set to?,18,18 c|18°c|18 degrees,dev-set
+d189,dev_photos/d189_appliance_easy.jpg,appliance,easy,synthetic,What temperature is the AC set to?,21,21 c|21°c|21 degrees,dev-set
+d190,dev_photos/d190_appliance_hard.jpg,appliance,hard,synthetic,What temperature is the AC set to?,23,23 c|23°c|23 degrees,dev-set
+d191,dev_photos/d191_appliance_medium.jpg,appliance,medium,synthetic,What temperature is the AC set to?,23,23 c|23°c|23 degrees,dev-set

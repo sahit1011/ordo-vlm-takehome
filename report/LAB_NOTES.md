@@ -319,6 +319,88 @@ perceived TTFT = text prefill + first token. Measured:
   serial path itself ~1–2 s. Native-res accuracy (3/3) costs 138.7 s serial
   on-device — measured once, never again.
 
+### GPU serial-path tuning sweep (Qwen3-2B@576, Adreno, cool-gated) — closed
+
+| Variant | Encode ms | TTFT | Verdict |
+|---|---|---|---|
+| A baseline (mmproj Q8) | 2,547 | 5.08 s | reference |
+| B mmproj F16 | **4,761** | 7.09 s | ✗ 1.9× slower — encoder is bandwidth-bound too; Q8 wins |
+| C --mtmd-batch-max-tokens 2048 | 2,489 | 5.51 s | no effect (576 tok fits one batch) |
+| D -ub 1024 | 2,534 | 4.80 s | marginal |
+
+**Conclusion: the Adreno serial floor is ~4.8–5.1 s TTFT for this workload,
+encoder-bound, insensitive to standard knobs.** Remaining levers are
+architectural (caching: 1.2–1.5 s perceived, deployed in dashboard as
+warm-on-drop) and silicon (Hexagon NPU via GenieX — next timebox).
+Also: warm-on-drop verified through the dashboard itself (mac engine:
+0.23 s cached vs 1.25 s serial, same correct answer).
+
+### Dev eval set (interim, synthetic — NOT the assignment set)
+
+Assignment requires user's own photos; internet images would break the
+"model has never seen them" guarantee. Interim: `harness/make_dev_set.py`
+renders 24 images (menus/receipts/medicine/signs/handwriting/whiteboard/
+book-spines/appliance) with controlled degradations (rotation/blur/dim/
+glare/occlusion), 9 easy / 9 medium / 6 hard, exact auto-generated ground
+truth. Provably unseen, unlimited, difficulty-controlled. Final claims stay
+reserved for the user's 32 real photos.
+
+### Dev-set ladder (24 synthetic items, Mac @576, protocol v2) — first real quant separation
+
+| Config | Total | Easy | Med | Hard |
+|---|---|---|---|---|
+| F16 | 24/24 | 9/9 | 9/9 | 6/6 |
+| Q8_0 | 24/24 | 9/9 | 9/9 | 6/6 |
+| Qwen3-2B Q4_0 | 24/24 | 9/9 | 9/9 | 6/6 |
+| Q4_0 | 23/24 | 9/9 | 8/9 | 6/6 |
+| Q4_K_M | 22/24 | 9/9 | 8/9 | 5/6 |
+| Q2_K | 22/24 | 9/9 | 8/9 | 5/6 |
+| SmolVLM-500M | 22/24 | 9/9 | 9/9 | 4/6 |
+
+**"Where does it break first?" — answered.** Quantized Qwen2.5 (Q4/Q2) breaks
+FIRST on the handwriting-font whiteboard items — and the failure mode is
+**salience retreat, not gibberish**: instead of reading the harder handwritten
+list, the model answers "Todo" (the big legible header). Encoder was constant
+(mmproj F16) across these configs → the damage is decoder-side reading
+confidence, direct evidence for "the decoder degrades first" (encoder Q8 vs
+F16 showed zero delta throughout). SmolVLM-500M fails differently: dense
+receipt → echoes all text without extracting (capacity, not quant).
+Q4_0 again > Q4_K_M (23 vs 22). Q2 = Q4_K_M on this set (no further drop —
+synthetic fonts too clean; real photos expected to separate them).
+
+**Phone dev-set (Qwen3-2B @576, serial, cool-gated): 25/26 (96%)** — all 24
+synthetic + real tablet count; only the creatine knife-edge missed. TTFT
+3.9–5.5 s stable across 26 consecutive queries — no thermal decay with
+4-query gate cadence. Synthetic ≫ easier than real photos (24/24 vs 1/2) —
+empirical proof that only own-photos give trustworthy accuracy (feeds the
+"is the eval set any good" section).
+
+**Ops lesson (cost us two Mac runs):** dashboard phone-engine starts swept
+away harness-owned Mac servers (`pkill` orphan cleanup). Fixed: sweep only
+when binding the mac port. Rule: one owner per device at a time; phone chain
+and Mac harness serialize around dashboard restarts.
+
+### Best-environment protocol (standing, per user directive)
+
+Every measurement runs: background apps killed (`free_ram.sh`) · real-sensor
+cool-gate (SoC ≤ 50–55 °C) · screen awake · engine warmed (first query
+discarded — OpenCL compile ~3 s) · single model resident (server pkill between
+configs) · models deleted from device after their e2e run (janitor) · serial
+mode for measurement, cache only in product-mode runs (flagged in records).
+
+### Part 4 stress suite — COMPLETE (champion config, unplugged, no cooling)
+
+- **Sustained (59 q / 10 min):** decode 23 → 14–15 t/s by q10 then FLAT to q59;
+  TTFT equilibrium ~6.8 s (+65% vs cool 4.1 s). Degradation plateaus — no spiral.
+- **Thermals:** SoC equilibrium 56–68 °C (peak 78) — soft landing, no hard
+  throttle. 59/59 correct: **accuracy is thermally invariant; heat taxes speed only.**
+- **Memory pressure** (4 heavy apps launched): zero measurable impact — GPU-pinned
+  buffers immune to eviction (converse of the CPU page-thrash pathology).
+- **Battery: 3% / 64 queries ≈ 0.05%/query** (~21 queries per 1%).
+- Dev-set bracket (Mac @576): LFM2-450M **23/24** wins the <1B slot over
+  SmolVLM-500M (22/24, hard 4/6). On-device: Qwen3-2B 25/26 @4.1 s p50 ≫
+  Qwen2.5-3B (accurate, 8.6 s p50, encoder 2× slower on Adreno).
+
 ### Open items
 
 - [ ] Encoder A/B on phone: mtmd on OpenCL vs CPU (decides TTFT story)

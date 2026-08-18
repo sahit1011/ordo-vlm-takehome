@@ -314,19 +314,31 @@ $("drop").onkeydown = e => { if (e.key === "Enter" || e.key === " ") $("file").c
 $("file").onchange = () => pick($("file").files[0]);
 $("drop").ondragover = e => e.preventDefault();
 $("drop").ondrop = e => { e.preventDefault(); pick(e.dataTransfer.files[0]); };
-function pick(f) {
+let warmed = false;
+async function pick(f) {
   if (!f) return;
-  file = f;
+  file = f; warmed = false;
   const img = new Image();
   img.src = URL.createObjectURL(f);
   $("drop").replaceChildren(img);
   $("go").disabled = !$("srvState").textContent.startsWith("ready");
+  // two-phase flow, phase A: warm the KV cache while the user types the question
+  if (!$("go").disabled) {
+    $("runState").textContent = "warming scene cache…";
+    const fd = new FormData(); fd.set("image", f);
+    try {
+      const r = await (await fetch("/api/warm", {method: "POST", body: fd})).json();
+      if (r.ok) { warmed = true; $("runState").textContent = `scene warmed in ${r.warm_s}s (hidden time) — next run measures perceived TTFT`; }
+      else $("runState").textContent = r.error || "warm failed — will run serial";
+    } catch (e) { $("runState").textContent = "warm failed — will run serial"; }
+  }
 }
 
 /* ---------- run ---------- */
 $("go").onclick = async () => {
   const fd = new FormData();
   fd.set("image", file); fd.set("question", $("q").value || "What does this say?");
+  fd.set("cached", warmed ? "1" : "0");
   $("go").disabled = true; running = true; base = latest;
   $("ans").innerHTML = ""; $("tiles").innerHTML = "";
   const t0 = performance.now();

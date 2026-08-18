@@ -60,7 +60,9 @@ def cpu_temp_best_guess(zones: dict) -> float | None:
     thresholds like cpu-hw-trip-* = 95.0 that read as fake sensors)."""
     cpu = [v for k, v in zones.items()
            if any(s in k.lower() for s in ("cpu", "soc", "tsens"))
-           and "trip" not in k.lower()]
+           # exclude non-sensor zones: trip setpoints (constant 95), socd
+           # (battery state-of-charge masquerading at 'soc'), ibat levels
+           and not any(b in k.lower() for b in ("trip", "socd", "ibat"))]
     return max(cpu) if cpu else (max(zones.values()) if zones else None)
 
 
