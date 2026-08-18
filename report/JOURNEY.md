@@ -186,6 +186,95 @@ pattern. Ops: wireless adb drops mid-chain, benchmark apps parking gigabytes
 runtime × encode frontier. Part 4 closed with the day's best sentence:
 sustained load costs a stable 40% throughput tax and zero accuracy.
 
+## Day 3 night (08-18 evening) — the runtime gauntlet and the caching answer
+
+**MNN CLI, built and beaten fairly.** Cross-compiled MNN with vision
+(`MNN_BUILD_OPENCV` — its absence makes MNN *silently ignore images*, trap #7,
+discovered only because a "fast" run answered from thin air). Fair matched-token
+rerun: vision 14.4 s on Adreno vs llama.cpp's 2.6 s — 5–6× on both platforms.
+Text engine healthy; vision preprocessing is where it loses. Every MNN run
+backfilled into the ledger after the user rightly asked why history didn't show
+them — hence the `record.py` choke-point policy.
+
+**LiteRT, closed four ways on Mac, three on phone.** Version-locked bundles,
+an undistributed dependency (solved with a hand-built stub .so exporting three
+no-op versioned symbols — it loads!), GPU accelerator libs never shipped, NPU
+bundles per-SoC with none public for Qualcomm. Fastest model init measured
+(0.8 s for 3 GB), slowest compute. The NPU door is closed at every layer on
+this SoC; the evidence trail (down to the missing library names) is the
+deliverable.
+
+**Decision: sub-second TTFT is architectural, not computational.** No
+runtime/silicon combination reaches sub-1 s serial TTFT at reading accuracy on
+this device. Two-phase caching (encode + image-prefill during user speech;
+answer clock starts at question end) measured 1.17–1.46 s perceived at full
+accuracy. Shipped as warm-on-drop in the dashboard. This reframing — *move the
+work, don't shrink it* — is the product answer to the assignment's 2 s budget.
+
+## Day 4 (08-18 late night → 08-19) — the kernel-coverage night
+
+**Decision: one submission document, one render command.** SUBMISSION.md
+(Parts 1–5, each with results/observations/journey/answers) + charts +
+`render_submission.py` → PDF. Regenerated after every result batch — a living
+doc by construction, not by promise.
+
+**The sweet-spot sweep** (user: "visually find where accuracy holds but TTFT
+drops"). 40 runs, five models, fine token ladder, one 12MP shelf photo,
+recall/9. The champion's knee is razor-sharp: 0–2/9 below 256 tokens, **8/9 at
+320 / 0.83 s**, flat to 1024 (2.9× TTFT for nothing), 9/9 only at native
+4,035 tok / 16.7 s — one knife-edge label costs 20×. Structural finds: LFM2's
+token cap doesn't bind (tiler floor), SmolVLM *degrades* at native res,
+Qwen2.5-3B dominated everywhere. Routing beats any fixed cap — now with the
+curve to prove it.
+
+**The MXFP4 arc** (user: "what about nvf4?"). NVFP4 = Blackwell-only; its open
+cousin MXFP4 is in our build — but `MXFP4_MOE` is a **silent no-op on dense
+models** (emitted byte-identical Q8_0; caught by tensor dump — trap #8).
+Forced onto all matrices via per-tensor overrides: 1.09 GB rung that scored
+**25/30 on Mac — equal-best on the ladder — at 89.5 t/s**. Then the phone
+cell: no OpenCL MXFP4 kernels, decoder to CPU, 22 s TTFT at unchanged recall.
+**A rung can top the accuracy ladder and be undeployable** — the night's
+thesis, first instance.
+
+**The ladders, both platforms.** Mac Qwen3-2B: BF16 = Q8 = Q2_K = 24/30 —
+precision never moved accuracy on the champion; decode tripled with bytes.
+Phone: Q4_0 25/30 @ 4.1 s, Q8_0 25/30 @ 6.3 s… then the user read the Q2_K
+rows: "why 30+ s?" **Prefill 348→18 t/s, decode 0.4 t/s: the decoder had
+silently fallen to CPU** — no log line, no error, just numbers. Q2_K has no
+OpenCL kernels. The 742 MB size-floor died for Android that minute (Metal-only).
+BF16, probed instead of assumed: GPU-resident, bandwidth-bound — feasible,
+pointless. Final Android ladder: **Q4_0 / Q8_0 / F16-BF16(slow)**.
+
+**The labeling arms race — user-driven, three rounds.** (1) LFM2-1.6B rows at
+33 s exposed the encoder CPU-fallback (the CLIP unsupported-ops warning);
+shipped an `enc/dec` column + GT labels in run detail, backfilled 621 rows.
+(2) The user caught Q2_K rows still saying `gpu/gpu` — launch *claims* aren't
+placement — so the dashboard began *measuring*: a text-only probe prefill at
+every server start, rates stamped on every row. (3) The user pushed again:
+"don't call huge TTFT 'cpu' — label ground truth." Correct: taxonomy made
+explicit — **config claim < probe rate (classifies) < ngl-ablation
+(confirms)** — suspicious rates now labeled `cpu?` until ablated. Encoder
+labels were always ground truth (mtmd's own warning). Placement probes then
+resolved every unknown: 3 of 6 encoders (LFM2 ×2, SmolVLM2) silently off the
+phone GPU; SmolVLM-500M and the Qwens resident. My timing-based guess for the
+450M ("looks GPU") was wrong — the probe said CPU — vindicating the rule that
+refused to backfill guesses.
+
+**Kills, called correctly.** LFM2-1.6B's remaining cells (measuring an
+unshippable CPU-encoder config at 12–36 s/query), the Q2_K cell mid-run (same
+logic, user call), BF16's 30-photo cell (trimmed to a probe). Each kill
+documented with what was kept and why the datum wasn't lost.
+
+**LFM2 1-tile mode — the architecture-specific product tier.** Tiles
+explained (fixed 512-px encoder window → geometry sets tile count → CPU
+encoder × tiles = the 8 s rows; caps can't help). Decision: **preprocessing
+belongs to the pipeline, keyed on architecture** — the dashboard now
+downscales uploads to 1-tile for LFM2 configs only (Qwen never resized; its
+smart-resize from original pixels is the accuracy path). Verified 1-tile on
+Mac (161–225 tok), then 30 photos on phone: **TTFT p50 0.67 s — and 9/30.**
+Resolution ladder complete: 512→9, 1024→9, 1344→15, native→19. LFM2-450M is a
+"what am I looking at" tier, never the reading tier.
+
 ## Standing process rules (earned, not assumed)
 
 - Validate the whole pipeline on the dev box before the device.
@@ -196,3 +285,12 @@ sustained load costs a stable 40% throughput tax and zero accuracy.
 - Every surprising number gets an attribution experiment (A/B) before a story.
 - Write down the wrong answers verbatim — failure modes carry more information
   than accuracy percentages.
+- No dashboard restarts while a phone chain runs — orchestration state dies
+  with it (learned by killing a 144-cell grid).
+- A placement label must name its evidence class: config claim < measured
+  probe < ablation. Never stamp a guess into the ledger — unknowns stay `?`.
+- Kernel coverage, not precision, decides deployability. Check every stage of
+  every architecture against every backend — by measurement, because nothing
+  announces a fallback.
+- Stop measuring configs you'd never ship (CPU-fallback cells at 30 s/query
+  heat the phone to prove nothing) — but bank the datum that killed them.

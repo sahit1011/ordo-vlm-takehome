@@ -532,12 +532,303 @@ the best available open-source mobile vision-encode path** — MNN wins text
 cold-start and CPU decode, loses vision by orders of magnitude. Champion
 stack unchanged and now proven against every accessible alternative.
 
+### Cross-runtime grid — COMPLETE (same image, same question, serial, warm)
+
+**Mac (M3 Pro):** llama.cpp Metal: enc 0.64 s · TTFT 1.36 s · 62.8 t/s · "120"✓ |
+llama.cpp CPU: enc 3.90 s · TTFT 5.55 s · 80.2 t/s (!CPU decode > Metal) · ✓ |
+MNN Metal: enc 3.24 s · TTFT ~4.2 s · "10"✗ | MNN CPU: enc 3.69 s · ~5.6 s · ✗ |
+LiteRT mac: binaries missing dylibs — undistributable, documented.
+
+**Phone:** llama.cpp Adreno: enc 2.6 s · TTFT 4.1 s · 25.9 t/s · ✓ (champion) |
+MNN OpenCL fair: enc 14.4 s · TTFT 17.3 s · "100"✗ | MNN CPU: froze device |
+LiteRT CPU (Gemma 3n, text): 7.6 t/s decode, 13 s cold e2e; GPU: accelerator
+libs not shipped; **NPU: backend valid, APK QNN libs load, but "Model requires
+one of [cpu,gpu]"** — NPU needs per-SoC compiled bundles; none public for
+Qualcomm (only mediatek.mt6993 exists). Last NPU door: Gallery in-app download.
+
+**LiteRT integration war stories:** version lock (v0.7 binary can't read new
+bundle format; v0.11+ needs libGemmaModelConstraintProvider — solved with a
+versioned stub .so exporting 3 no-op symbols); macOS binaries missing chained
+dylibs. Grid conclusions: llama.cpp wins encode 5–6× on BOTH platforms and is
+the only runtime reading fine print; decode clusters everywhere (bandwidth);
+CPU>GPU decode for small models on both platforms; each rival lost to a
+different failure class (MNN: vision preprocessing; LiteRT: distribution +
+model-catalog lock-in).
+
+### Enumeration matrix (real photo, "name all visible supplements", recall /9)
+
+| Cell | TTFT | Encode | Decode | Recall |
+|---|---|---|---|---|
+| Mac Qwen3-2B Metal | 1.27 s | 0.63 s | 98 t/s | **8/9** |
+| Mac Qwen3-2B CPU | 5.54 s | 3.92 s | 76 t/s | 7/9 |
+| Mac MNN Metal | 3.80 s | 3.24 s | 85 t/s | 2/9 |
+| Mac LFM2-450M Metal | 1.22 s | **0.19 s** | 253 t/s | 5/9 |
+| Mac Smol-500M Metal | **0.98 s** | **0.08 s** | 207 t/s | 4/9 |
+| Phone Qwen3-2B GPU @576 | 4.92 s | 2.54 s | 26.5 t/s | 7/9 |
+| Phone Qwen3-2B GPU @320 | **2.97 s** | 1.11 s | 28.4 t/s | **7/9** (= @576!) |
+| Phone Qwen3-2B CPU | 36.6 s | 20.7 s | 0.4 t/s | 7/9 (285 s total) |
+
+Phone sub-1B (GPU @576): LFM2-450M TTFT 8.34 s enc 1.6 s dec 52 t/s **recall
+7/9** (matches champion — but its 2,104-token tiling makes it 2.8× slower than
+Qwen3@320 at equal recall); Smol-500M TTFT 6.84 s recall 4/9. **Token-efficiency
+law, final form: TTFT is a property of token count, not kernel speed** — LFM2's
+3× faster encoder is fully repaid by 3.8× more tokens through prefill
+(Mac: 191 ms + 834 ms vs Qwen's 632 ms + 444 ms → dead-heat TTFT, 5 vs 8 recall).
+Findings: recall tracks parameters monotonically (8→5→4→2); sub-1B encoders
+are blazing (75–191 ms Metal) but miss half the shelf; **@320 matches @576
+recall on enumeration at −40% TTFT** → per-query token routing validated
+(fine print needs 576; product-naming doesn't); backend never changes recall
+(GPU=CPU answers at 29× speed apart).
+
+### LiteRT on Mac — closed from all four directions
+
+v0.7 binary runs but: current .litertlm = format-ahead ("audio_encoder_hw"),
+.task preview bundle = wrong container ("Failed to parse LlmMetadata").
+v0.9–v0.16 binaries: unresolvable dylib chains. Source: Bazel Apple crosstool
+demands full Xcode (CLT insufficient — same CLT built llama.cpp and MNN fine).
+LiteRT is unbuildable/unrunnable on this Mac from any public artifact.
+
+### Qwen3-2B precision ladder — Mac Metal reference (30 real photos, @576)
+
+| Precision | Size | Accuracy | TTFT p50 | Decode | prompt_n p50 |
+|---|---|---|---|---|---|
+| BF16 | 3.2 GB | 24/30 | 1.23 s | 32.3 t/s | 580 |
+| Q8_0 | 1.7 GB | 24/30 | 1.17 s | 62.3 t/s | 580 |
+| Q2_K | 742 MB | 24/30 | 1.20 s | 96.9 t/s | 580 |
+
+**Accuracy perfectly flat BF16→Q2_K on the 2B champion** — the real-photo set
+detects zero quantization damage even at Q2_K, while decode scales 3× with
+bytes and TTFT doesn't move (prefill compute-bound, encode untouched — the
+ladder laws hold exactly). Contrast: Qwen2.5-3B showed its knee at Q4 on
+synthetic fine-print items. Two readings: (a) the 2B's knife-edge items are
+already lost at @576 (its misses are resolution-bound, not precision-bound), so
+precision has no accuracy left to take; (b) Q2_K of the 2B (742 MB) becomes the
+size-floor candidate — phone confirmation cells in flight (files:
+results/mac-qwen3-2b-{bf16,q8,q2}-ladder-ordo-20260818-230849.jsonl).
+
+### Sweet-spot sweep — supps enumeration vs token budget (Mac Metal, 40 runs)
+
+One image (12MP shelf), one query ("name all visible supplements", recall /9),
+five models × fine `--image-max-tokens` ladder; x-axis = measured prompt_n
+(nominal caps bind per-tile on LFM2/Smol → incomparable). Chart:
+figures/sweetspot_supps_mac.png · data: results/sweetspot-supps-mac-20260818-231325.jsonl.
+
+- **Qwen3-2B Q4_0 knee at 320 tok: 8/9 @ 0.83 s** — 0–2/9 below 256, flat 8/9
+  from 320→1024 (2.9× TTFT for nothing), **9/9 only at native 4,035 tok /
+  16.7 s** — the 9th (knife-edge) label costs 20× the sweet spot.
+- Real dip at 448 (6/9): smart-resize grid effect, deterministic, not noise.
+- **LFM2 token knob doesn't bind**: tiler floors at ~1,618 tok on this image
+  at every cap 64→native → its TTFT floor is architectural. 450M rides the
+  floor to 8/9 @ 0.99 s (enumeration-competitive!); 1.6B same recall at 3.2 s.
+- SmolVLM-500M: 4/9 ceiling, and native *degrades* to 1/9 (tiling fragmentation).
+- Qwen2.5-3B dominated everywhere (encoder 2× slower/token, ceiling 7/9 @ 21 s).
+- Product read: route enumeration at 320; escalate to native-res only on a
+  "read the fine print" intent; never park between 576–1024 for this task class.
+
+### MXFP4 rung (the "what about FP4?" answer, measured)
+
+NVFP4 = Blackwell-only (HW FP4 + FP8 block scales; no llama.cpp/Adreno/Metal
+path). Its open cousin MXFP4 (E2M1 + E8M0 per-32 scales) IS in our build — but
+**trap #8: `MXFP4_MOE` is a silent no-op on dense models** (produced pure Q8_0,
+byte-identical size; verified by tensor dump: 0 MXFP4 tensors). Real rung
+forced via `--tensor-type attn_*/ffn_*=mxfp4`: 196/197 matrices MXFP4,
+1.09 GB (vs Q4_0 1.06 GB). **30-photo Mac cell @576: 25/30, TTFT p50 1.18 s,
+decode 89.5 t/s** — best accuracy on the Mac ladder (BF16/Q8/Q2 all 24/30;
+±1 item = noise) at Q4 size with near-Q2 decode. Caveat before crowning it:
+Metal has MXFP4 kernels (GPT-OSS era); the OpenCL/Adreno backend may not —
+phone cell required before it counts for deployment (queued after mega-chain).
+
+### LFM2-1.6B on phone: encoder is NOT on the GPU (OpenCL op gap)
+
+Server log during the 1.6B phone cells:
+`WARNING: the CLIP graph uses unsupported operators by the backend (backend=OpenCL)`
+→ the SigLIP2-so400m encoder falls back to CPU. ~11 s per 512-px tile; 3-tile
+photos (≈790 tok) = ~33 s encode, TTFT 35.7 s. The 450M's smaller encoder ran
+its tiles in 1.6 s total, and Qwen3's encoder is fully OpenCL-resident (2.6 s
+@576) — so the 1.6B's phone TTFTs are a *CPU-encoder* number, not a GPU one.
+Grid footnote required: on Adreno, "GPU run" for LFM2-1.6B means GPU decode +
+CPU vision. Same log also warns `flash attention not supported by OpenCL` —
+pre-answers the phone FA A/B (fa=1 should no-op on Adreno; llama-bench cell
+will confirm).
+
+### FA / quantized-KV A/B on Adreno (llama-bench, champion Q4_0, cool-gated)
+
+| fa | KV | pp512 t/s | tg128 t/s |
+|---|---|---|---|
+| 0 | f16 | 327.2 | 15.8 |
+| 0 | q4_0 | **context creation fails** (quantized KV requires FA — same as Mac) |  |
+| 1 | f16 | **347.5 (+6%)** | **17.3 (+10%)** |
+| 1 | q4_0 | 325.7 | 13.8 (**−20%** vs fa=1/f16) |
+
+FA on OpenCL works for the Qwen3 graph and pays (+6% prefill / +10% decode);
+the earlier "flash attention not supported by OpenCL" warning was the LFM2
+server's — FA support is per-graph (head-dim dependent), another per-model
+placement fact the enc/dec column can't capture alone. q4_0 KV costs 2.5× more
+decode on Adreno than on Metal (−20% vs −8%): use only if context RAM binds.
+Defaults (fa on, f16 KV) were already optimal on both platforms.
+
+### Q2_K on Adreno: the DECODER falls back to CPU too (k-quants have no OpenCL kernels)
+
+Phone Q2_K @576 rows: prefill 17–21 t/s (vs Q8's 248–374), decode 0.4–0.5 t/s
+(vs 12–23), TTFT 22–37 s, RAM *higher* than Q8 (1.32 vs 1.02 GB — CPU-side
+buffers), encode unchanged (mmproj Q8 still GPU), SoC to 85 °C. No log warning
+this time — the OpenCL backend declines unsupported weight types *silently* at
+tensor-placement (only the CLIP graph case warns). First write-up overclaimed
+"all k-quants fall back" — the ledger rate scan falsified it within minutes:
+
+| config (phone-gpu, uncached, >100 tok) | n | prefill t/s p50 | class |
+|---|---|---|---|
+| lfm2-450-q8 | 117 | 1483 | GPU |
+| smol500-q8 | 129 | 527 | GPU |
+| lfm2-q4 (Q4_0) | 64 | 461 | GPU |
+| qwen3-2b-q4 (Q4_0) | 220 | 406 | GPU |
+| qwen3-2b-q8 | 30 | 265 | GPU |
+| q4_0 (Qwen2.5 Q4_0) | 23 | 217 | GPU |
+| smol22-q4 (**Q4_K_M**) | 1 | 213 | **GPU** |
+| qwen3-2b-q2 (**Q2_K**) | 12 | **18** | **CPU** |
+
+Corrected rule: **kernel coverage is per weight-type — Q4_K_M has OpenCL
+kernels (213 t/s measured); Q2_K does not (18 t/s, the only CPU-class config
+of eight).** BF16 coverage unknown → feasibility probe queued. Kills the
+742 MB Q2_K size-floor for Android (Mac-Metal only). Detector hardened in the
+dashboard: decoder placement is now *measured* at every server launch (text-only
+~250-token probe prefill; GPU class 250–420 t/s vs CPU 17–55 on this device —
+an order of magnitude apart) and stamped with the rate, since logs at default
+verbosity say nothing. Q2 cell allowed to finish for the accuracy datum;
+BF16 30-photo cell trimmed to the probe.
+
+### Qwen3-2B phone ladder @576 (30 real photos, Adreno)
+
+Q4_0 **25/30**, TTFT p50 4.1 s (champion) · Q8_0 **25/30**, 6.3 s (accuracy
+flat, +54% TTFT from bandwidth) · Q2_K accuracy tracking ~flat (11/13 mid-run)
+**but decoder on CPU** → 37 s TTFT, unshippable on this backend. Phone story
+matches Mac: precision doesn't buy or cost accuracy on the 2B champion —
+backend kernel coverage decides what's deployable.
+
+### LFM2-1.6B remaining phone cells cancelled (user call, 2026-08-18 ~23:40)
+
+@1344 and full-res cells stopped mid-run: the encoder's CPU fallback makes
+them a measurement of a config we'd never ship (TTFT 12–36 s). Kept: the
+completed @1024 cell (19/30), Mac reference cells, sweet-spot sweep, and the
+op-gap finding itself. Partial @1344 rows remain in the ledger (flagged
+enc=cpu). Chain relaunched from FA/KV A/B onward + MXFP4 phone cell appended.
+
+### Chain 3B results — BF16 probe, MXFP4 phone, placement probes (2026-08-19 ~00:45)
+
+**BF16 on Adreno: GPU-resident, bandwidth-bound.** llama-bench pp512 157 t/s /
+tg64 14.9 t/s; launch probe dec=adreno-ocl (133 t/s); scored query correct
+("120") at 10.5 s TTFT. Feasible, pointless — 3× the download of Q8 for equal
+accuracy and worse latency.
+
+**MXFP4 on Adreno: no OpenCL kernels — Metal-only rung.** Launch probe caught
+it instantly: dec=cpu-fallback (25 t/s). Supps enum @576 still 7/9 (equals
+champion — backend never changes recall) but 22 s TTFT; @320 5/9 (below the
+champion's 7/9 @320 — CPU decode also ran hotter-throttled). Verdict: the
+best-scoring Mac rung (25/30) is undeployable on this phone.
+
+**Placement probes — the '?' rows resolved (249 rows backfilled):**
+- LFM2-450M: **enc=cpu (op gap)** — same SigLIP2 fallback as the 1.6B; the
+  earlier timing hint ("looks GPU") was wrong — refusing to stamp it was right.
+  Its 86M tower is just small enough to hide on CPU (1.6–4 s). dec GPU 1065 t/s.
+- SmolVLM-500M: **enc=adreno-ocl** — the only non-Qwen encoder that runs on
+  this GPU. dec 818 t/s.
+- SmolVLM2-2.2B: **enc=cpu (op gap)**, 55 s encode at @576 — explains its
+  single catastrophic phone row. dec GPU 259 t/s.
+
+Tally: 3 of 6 model-encoders silently fall off the Adreno GPU (LFM2×2,
+SmolVLM2); only Qwen and SmolVLM-500M encoders are OpenCL-resident. Final
+deployable Android ladder: **Q4_0 / Q8_0 / F16-BF16(slow)**. Phone released,
+all probe files janitored.
+
+### LFM2-450M phone cap ladder (5-photo confirmation cell, 2026-08-19)
+
+Same 5 real photos at imt 64/256/1024/native. The cap does NOT change tile
+count but DOES scale per-tile tokens: 1-tile photo (o03) encode 157→542→853 ms
+across 64/256/1024; 3-tile photos ~4.5→5.0→9.0 s (CPU encoder). Accuracy:
+2/5 at 64/256/native; **1024 degrades to 1/5** ("Titan"→"Citizen",
+"Lemon"→"Black", one "Cannot read") — upscaling past the native tile grid
+hurts, matching the Mac 576-dip and SmolVLM native-degradation pattern.
+o03 at imt=64 hit **0.44 s TTFT** (the Mac-class number) but read the plate
+worse. Best phone setting: imt 256/native → ~8 s TTFT multi-tile / ~1 s
+single-tile, still dominated by the champion on both axes. All rows in ledger
+with cpu⚠ encoder labels.
+
+### LFM2 1-tile mode: auto-preprocess shipped + 30-photo phone cell (2026-08-19)
+
+Dashboard now downscales uploads to the 1-tile budget (max side 512) whenever
+the active config is LFM2 — the only latency lever that works on this
+architecture, since imt trims within tiles and geometry sets tile count. Qwen
+configs never resized (smart-resize from original pixels = accuracy path).
+Verified 1-tile on Mac first (161–225 prompt tokens). Phone cell, all 30 real
+photos: **TTFT 0.53–1.05 s (p50 0.67 s), encode 243–589 ms — and 9/30.**
+Same score as the @1024 rung: below ~1344px input this model is fully
+resolution-starved on our question set. LFM2-450M's fast operating point is
+real (sub-second on a phone, CPU encoder and all) but answers scene-level
+questions only. Resolution ladder now: 512→9, 1024→9, 1344→15, native→19 /30.
+
+### Decoder-placement labeling: evidence classes (correction of method)
+
+Encoder labels are ground truth (mtmd prints the unsupported-ops warning; its
+absence = graph accepted on GPU). Decoder labels were rate-classified — not
+good enough. Taxonomy now explicit: launch config < probe rate (CLASSIFIES,
+order-of-magnitude gap) < **ngl ablation (CONFIRMS: -ngl 0 vs 99; if the flag
+changes nothing, compute is CPU — buffer/log lines can't prove compute
+placement because weights can sit in GPU buffers while ops run on CPU)**.
+Suspicious probe rates are labeled "cpu? (probe N t/s — confirm by ngl
+ablation)" until ablated.
+
+**Q2_K ngl ablation result (phone, llama-bench):**
+
+| | pp512 | tg16 |
+|---|---|---|
+| -ngl 99 | 31.5 t/s | **0.43 t/s** |
+| -ngl 0 | 34.1 t/s | **29.98 t/s** |
+
+Prefill identical → no OpenCL Q2_K kernels, CONFIRMED. And the twist: with
+ngl 99 the weights sit in GPU buffers while ops run on CPU, so every decode
+step round-trips data — **offloading Q2_K isn't just useless, it's 70×
+destructive** (0.43 vs 30 t/s). Pure-CPU Q2_K actually decodes fine (30 t/s —
+the CPU's repacked kernels like it); it's the ~34 t/s CPU prefill that kills
+TTFT (~18 s @576). Also retro-explains the day-2 "pathological 0.4 t/s"
+sightings: that number is the offloaded-but-unsupported signature. 26 Q2
+ledger rows stamped with the ablation verdict.
+
+### Sub-second head-to-head + champion low-token curve (phone, 30 photos, 2026-08-19)
+
+Question: can Qwen match LFM2's 1-tile encode latency (~300 ms)? Answer: yes,
+and it wins accuracy at every point.
+
+| config | tok p50 | enc p50 | TTFT p50 | acc |
+|---|---|---|---|---|
+| LFM2-450M 1-tile | ~160–290 | ~0.30 s | 0.67 s | 9/30 |
+| qwen3-2b-q4 @96 | 116 | 0.31 s | 0.82 s | 11/30 |
+| qwen3-2b-q4 @128 | 146 | 0.39 s | 0.93 s | 12/30 |
+| qwen3-2b-q4 @256 | 262 | 0.82 s | 1.70 s | 15/30 |
+| qwen3-2b-q4 @576 (ref) | ~560 | 2.6 s | 4.1 s | 25/30 |
+
+Law, final form: **TTFT = tokens × per-token cost(architecture, backend)** —
+equal tokens equalize prefill only; encode price differs by tower (LFM2 86M:
+~1.2 ms/tok even on CPU; Qwen: ~3.3 ms/tok on Adreno). Accuracy mechanism at
+equal tokens = **pixels-per-token**: Qwen 3,136 px/tok full-frame vs LFM2
+~800 px/tok in a 512-px tile → 4× more image per token → 15 vs 9 of 30.
+Product: one model covers both tiers — fast @96–128 (sub-second serial),
+reading @576+cache. Champion's phone token curve now: 96→11, 128→12, 256→15,
+320→19, 576→25, 1024→26 (/30).
+
 ### Open items
 
-- [ ] Encoder A/B on phone: mtmd on OpenCL vs CPU (decides TTFT story)
-- [ ] Phone CPU decode pathology: root-cause or timebox out
-- [ ] 32 eval photos (user) + 50 LoRA photos (user) — critical path
-- [ ] Full ladder on phone with thermal protocol (after photos)
-- [ ] Stress: sustained 20q / 10-min soak / memory pressure / battery (scripts ready)
-- [ ] QLoRA on Colab; extra experiment: train at deployment image budget (576)
-- [ ] Eval-set validity checks: cloud-model ceiling, discrimination, test-retest
+- [x] Encoder A/B on phone: mtmd on OpenCL vs CPU — done (7.8 vs 22.6 s; and
+      per-model op-gap map: LFM2 both sizes + Smol2.2B fall back, log-confirmed)
+- [x] Phone CPU decode pathology: root-caused — the 0.4 t/s signature is
+      *offloaded-but-unsupported weight types* (Q2_K ablation: ngl99 0.43 vs
+      ngl0 30 t/s); pure-CPU decode is healthy
+- [x] Full ladder on phone with thermal protocol — done (Q4_0/Q8_0 25/30,
+      Q2_K CPU-bound, BF16 probe, MXFP4 Metal-only)
+- [x] Stress suite (Part 4) — done day 3
+- [x] Eval-set validity checks — done (synthetic 92–100% vs real 47–87%)
+- [ ] CPU-only fast-trio cells (qwen@128 / smol 1-tile / lfm2 1-tile) — running
+- [ ] Camera re-shoots for eval set (user) + GT review of draft csv (user)
+- [ ] QLoRA on Colab (user; script ready in notebooks/) — train at deployment
+      budget 576; Part 5 write-up after
+- [ ] AI Edge Gallery NPU test (user's own)
+- [ ] Revoke the HF token exposed in session transcript (user)

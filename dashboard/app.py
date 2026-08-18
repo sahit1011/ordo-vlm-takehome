@@ -90,6 +90,58 @@ def read_server_log() -> str:
     return adb_out("shell", "cat", f"{PHONE_DIR}/server.log")
 
 
+CLIP_FALLBACK_RE = re.compile(r"CLIP graph uses unsupported operators", re.I)
+
+
+def detect_backends(engine: str) -> tuple[str, str]:
+    """(encoder, decoder) placement for the running server. The decoder follows
+    the launch config; the encoder can silently fall back to CPU when the CLIP
+    graph has ops the backend lacks (observed: LFM2-1.6B on OpenCL) — the only
+    evidence is a one-line warning in the server log, so we scan for it."""
+    dec = {"mac": "metal", "phone-gpu": "adreno-ocl", "phone-cpu": "cpu"}.get(engine, "?")
+    enc = "cpu (op gap)" if CLIP_FALLBACK_RE.search(read_server_log()) else dec
+    return enc, dec
+
+
+def preprocess_for_config(path):
+    """LFM2's tiler splits anything larger than one 512-px tile into 3+ tiles,
+    each a full CPU-fallback encoder pass on Adreno (~1.6 s/tile) — the token
+    cap can't prevent it (it trims within tiles, geometry sets the count). So
+    for LFM2 configs we downscale uploads to the 1-tile budget before sending:
+    measured 161–290 tokens/image, ~1 s TTFT floor on phone. Known trade: fine
+    print pays (client-side resize loses knife-edge detail) — Qwen configs are
+    never resized (their smart-resize from original pixels is the accuracy path)."""
+    if not (state.get("config") or "").startswith("lfm2"):
+        return
+    from PIL import Image
+    img = Image.open(path)
+    w, h = img.size
+    s = 512 / max(w, h)
+    if s < 1:
+        img = img.convert("RGB") if img.mode != "RGB" else img
+        img.resize((round(w * s), round(h * s)), Image.LANCZOS).save(path, quality=92)
+
+
+def probe_decoder_tps(url: str) -> int | None:
+    """Text-only ~250-token prefill at launch. Decoder placement is invisible in
+    logs at default verbosity (OpenCL declines unsupported weight types
+    silently — observed: Q2_K at 18 t/s prefill vs 250–420 GPU-class), so we
+    measure instead of parse. No image → doesn't touch the encode-ms ledger."""
+    try:
+        t0 = time.monotonic()
+        resp = requests.post(f"{url}/v1/chat/completions", timeout=600, json={
+            "messages": [{"role": "user",
+                          "content": "Repeat exactly: " + ("lorem ipsum dolor sit amet " * 40)}],
+            "max_tokens": 4, "temperature": 0, "cache_prompt": False}).json()
+        t = resp.get("timings", {})
+        tps = t.get("prompt_per_second")
+        if not tps and t.get("prompt_n"):
+            tps = t["prompt_n"] / max(time.monotonic() - t0, 1e-6)
+        return round(tps) if tps else None
+    except requests.RequestException:
+        return None
+
+
 def encode_ms_since_last():
     log = read_server_log()
     new = log[state["log_offset"]:]
@@ -223,7 +275,19 @@ def start_server(engine: str = Form(...), config: str = Form(...),
         state.update(engine=engine, config=config, imt=imt, threads=threads,
                      ready=True, load_s=round(time.monotonic() - t0, 1),
                      log_offset=len(read_server_log()))
-        return {"ok": True, "load_s": state["load_s"]}
+        state["enc_backend"], state["dec_backend"] = detect_backends(engine)
+        # evidence classes, weakest to strongest: launch config < measured probe
+        # rate < ngl ablation. The probe CLASSIFIES (order-of-magnitude gap);
+        # a suspicious rate should be confirmed by ablation before hard claims.
+        tps = probe_decoder_tps(url)
+        if tps:
+            if engine != "phone-cpu" and tps < 80:  # GPU class here is 250–420
+                state["dec_backend"] = f"cpu? (probe {tps} t/s — confirm by ngl ablation)"
+            else:
+                state["dec_backend"] += f" (probe {tps} t/s)"
+        state["log_offset"] = len(read_server_log())  # probe lines aren't the query's
+        return {"ok": True, "load_s": state["load_s"],
+                "enc_backend": state["enc_backend"], "dec_backend": state["dec_backend"]}
 
 
 @app.post("/api/infer")
@@ -239,6 +303,7 @@ def infer(image: UploadFile = File(...), question: str = Form(...),
             return JSONResponse({"error": "jpg/jpeg/png only"}, status_code=400)
         path = UPLOADS / f"up_{int(time.time())}.{ext}"
         path.write_bytes(image.file.read())
+        preprocess_for_config(path)
 
         url = f"http://127.0.0.1:{MAC_PORT if state['engine'] == 'mac' else LOCAL_PORT}"
         on_phone = state["engine"] != "mac"
@@ -252,12 +317,15 @@ def infer(image: UploadFile = File(...), question: str = Form(...),
         prompt_ms = t.get("prompt_ms")
         rec = {
             "ts": time.time(),
+            "device": "mac" if state["engine"] == "mac" else "phone",
             "engine": state["engine"], "config": state["config"],
             "runtime": ENGINES.get(state["engine"], {}).get("runtime"),
             "imt": state["imt"], "threads": state["threads"],
             "image": path.name, "question": question,
             "answer": res["text"],
             "correct": score.is_correct(res["text"], answer_gt, accept_also) if answer_gt else None,
+            "answer_gt": answer_gt, "accept_also": accept_also or None,
+            "enc_backend": state.get("enc_backend"), "dec_backend": state.get("dec_backend"),
             "ttft_s": res["ttft_client_s"], "total_s": res["total_s"],
             "encode_ms": enc,
             "prefill_ms": round(prompt_ms - enc) if (prompt_ms and enc) else prompt_ms,
@@ -286,6 +354,7 @@ def warm(image: UploadFile = File(...)):
     UPLOADS.mkdir(parents=True, exist_ok=True)
     path = UPLOADS / "warm_current.jpg"
     path.write_bytes(image.file.read())
+    preprocess_for_config(path)
     url = f"http://127.0.0.1:{MAC_PORT if state['engine'] == 'mac' else LOCAL_PORT}"
     t0 = time.monotonic()
     try:
@@ -312,6 +381,7 @@ def infer_stream(image: UploadFile = File(...), question: str = Form(...),
         return JSONResponse({"error": "jpg/jpeg/png only"}, status_code=400)
     path = UPLOADS / f"up_{int(time.time())}.{ext}"
     path.write_bytes(image.file.read())
+    preprocess_for_config(path)
     url = f"http://127.0.0.1:{MAC_PORT if state['engine'] == 'mac' else LOCAL_PORT}"
     on_phone = state["engine"] != "mac"
 
@@ -320,6 +390,23 @@ def infer_stream(image: UploadFile = File(...), question: str = Form(...),
         sampler = metrics.Sampler(interval_s=1.0) if on_phone else None
         if sampler:
             sampler.__enter__()
+        # mac runs: sample llama-server RSS so peak-RAM isn't phone-only
+        mac_peak = {"rss_mb": None}
+        mac_stop = None
+        if not on_phone and state.get("mac_proc"):
+            import threading
+            mac_stop = threading.Event()
+            pid = state["mac_proc"].pid
+            def _macsample():
+                while not mac_stop.is_set():
+                    out = subprocess.run(["ps", "-o", "rss=", "-p", str(pid)],
+                                         capture_output=True, text=True).stdout.strip()
+                    if out.isdigit():
+                        mb = int(out) // 1024
+                        if mac_peak["rss_mb"] is None or mb > mac_peak["rss_mb"]:
+                            mac_peak["rss_mb"] = mb
+                    mac_stop.wait(1.0)
+            threading.Thread(target=_macsample, daemon=True).start()
         payload = {
             "messages": [{"role": "user", "content": [
                 {"type": "image_url", "image_url": {"url": llm.image_data_url(str(path))}},
@@ -359,14 +446,18 @@ def infer_stream(image: UploadFile = File(...), question: str = Form(...),
         finally:
             if sampler:
                 sampler.__exit__(None, None, None)
+            if mac_stop:
+                mac_stop.set()
         enc = encode_ms_since_last()
         prompt_ms = timings.get("prompt_ms")
         rec = {
             "ts": time.time(), "engine": state["engine"], "config": state["config"],
+            "device": "mac" if state["engine"] == "mac" else "phone",
             "runtime": ENGINES.get(state["engine"], {}).get("runtime"),
             "imt": state["imt"], "threads": state["threads"], "cached": bool(cached),
             "image": path.name, "question": question, "answer": "".join(pieces).strip(),
             "correct": None,
+            "enc_backend": state.get("enc_backend"), "dec_backend": state.get("dec_backend"),
             "ttft_s": (t_first - t0) if t_first else None,
             "total_s": time.monotonic() - t0,
             "encode_ms": enc,
@@ -377,7 +468,8 @@ def infer_stream(image: UploadFile = File(...), question: str = Form(...),
             "decode_tps": timings.get("predicted_per_second"),
             "decode_n": timings.get("predicted_n"),
             "decode_ms": timings.get("predicted_ms"),
-            "peak_ram_mb": round(sampler.peak_vm_hwm_kb / 1024) if sampler and sampler.peak_vm_hwm_kb else None,
+            "peak_ram_mb": (round(sampler.peak_vm_hwm_kb / 1024) if sampler and sampler.peak_vm_hwm_kb
+                            else mac_peak["rss_mb"]),
             "peak_soc_temp_c": sampler.peak_cpu_temp if sampler else None,
             "battery_before": batt0, "battery_after": metrics.battery() if on_phone else {},
         }
@@ -387,6 +479,52 @@ def infer_stream(image: UploadFile = File(...), question: str = Form(...),
         yield "data: " + json.dumps({"type": "done", "record": rec}) + "\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+IMAGE_DIRS = ["results/raw/uploads", "eval/photos", "eval/ordo_photos",
+              "eval/ordo_photos_1024", "eval/ordo_photos_1344", "eval/dev_photos",
+              "eval/train_synth"]
+
+
+def find_image(name: str):
+    if not name or "/" in name or ".." in name:
+        return None
+    for d in IMAGE_DIRS:
+        p = ROOT / d / name
+        if p.exists():
+            return p
+    return None
+
+
+@app.get("/api/image")
+def get_image(name: str):
+    p = find_image(name)
+    if not p:
+        return JSONResponse({"error": "image not found"}, status_code=404)
+    return FileResponse(p)
+
+
+@app.get("/api/preview")
+def get_preview(name: str, tokens: int = 576):
+    """Reconstruction of the model's input: the original resized to the exact
+    pixel area the run's image tokens represent (Qwen family: ~3136 px/token
+    = 28x28 patches with 2x2 merge). Labeled an approximation in the UI."""
+    p = find_image(name)
+    if not p:
+        return JSONResponse({"error": "image not found"}, status_code=404)
+    from io import BytesIO
+    from PIL import Image as PImage
+    from fastapi.responses import Response
+    im = PImage.open(p).convert("RGB")
+    w, h = im.size
+    target_area = max(tokens, 16) * 3136
+    scale = (target_area / (w * h)) ** 0.5
+    if scale < 1:
+        im = im.resize((max(int(w * scale), 28), max(int(h * scale), 28)), PImage.LANCZOS)
+    buf = BytesIO()
+    im.save(buf, "JPEG", quality=90)
+    return Response(buf.getvalue(), media_type="image/jpeg",
+                    headers={"X-Preview-Dims": f"{im.size[0]}x{im.size[1]}"})
 
 
 @app.get("/api/runs")

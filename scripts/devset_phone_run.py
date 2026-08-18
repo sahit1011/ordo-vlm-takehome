@@ -39,15 +39,17 @@ def cool():
 
 
 GT = sys.argv[3] if len(sys.argv) > 3 else "eval/dev_ground_truth.csv"
+ENGINE = sys.argv[4] if len(sys.argv) > 4 else "phone-gpu"
 rows = list(csv.DictReader(open(ROOT / GT)))
 if "dev_ground_truth" in GT:
     rows += [r for r in csv.DictReader(open(ROOT / "eval/smoke_gt.csv")) if r["id"].startswith("p01")]
 
 cool()
-r = requests.post(f"{DASH}/api/server", data={"engine": "phone-gpu", "config": CONFIG,
+r = requests.post(f"{DASH}/api/server", data={"engine": ENGINE, "config": CONFIG,
                                               "threads": 6, "imt": IMT}, timeout=420).json()
 assert r.get("ok"), r
-print(f"server up ({CONFIG} imt={IMT}) in {r['load_s']}s", flush=True)
+print(f"server up ({ENGINE} {CONFIG} imt={IMT}) in {r['load_s']}s "
+      f"enc={r.get('enc_backend')} dec={r.get('dec_backend')}", flush=True)
 
 good = 0
 for i, it in enumerate(rows):

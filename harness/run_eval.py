@@ -47,6 +47,12 @@ CONFIGS = {
     "lfm2-q4":    {"model": "LFM2-VL-1.6B-Q4_0.gguf",              "mmproj": "mmproj-LFM2-VL-1.6B-Q8_0.gguf"},
     "qwen3-2b-q4": {"model": "Qwen3-VL-2B-Instruct-Q4_0.gguf",     "mmproj": "mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf"},
     "lfm2-450-q8": {"model": "LFM2-VL-450M-Q8_0.gguf",             "mmproj": "mmproj-LFM2-VL-450M-Q8_0.gguf"},
+    "qwen3-2b-q8": {"model": "Qwen3-VL-2B-Instruct-Q8_0.gguf", "mmproj": "mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf"},
+    "qwen3-2b-q2": {"model": "Qwen3-VL-2B-Instruct-Q2_K.gguf", "mmproj": "mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf"},
+    "qwen3-2b-bf16": {"model": "Qwen3-VL-2B-Instruct-BF16.gguf", "mmproj": "mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf"},
+    # MXFP4 rung built via --tensor-type overrides (MXFP4_MOE alone is a no-op on dense models)
+    "qwen3-2b-mxfp4": {"model": "Qwen3-VL-2B-Instruct-MXFP4.gguf", "mmproj": "mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf"},
+    "lfm2-450-q4": {"model": "LFM2-VL-450M-Q4_0.gguf",             "mmproj": "mmproj-LFM2-VL-450M-Q8_0.gguf"},
     "lfm2-q8":    {"model": "LFM2-VL-1.6B-Q8_0.gguf",              "mmproj": "mmproj-LFM2-VL-1.6B-Q8_0.gguf"},
 }
 

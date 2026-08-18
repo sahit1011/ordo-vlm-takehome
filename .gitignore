@@ -11,3 +11,7 @@ tools/
 
 # raw server logs (parsed summaries in results/ are committed)
 results/raw/
+
+# build intermediates & runtime caches
+report/SUBMISSION.html
+tmp_*/
