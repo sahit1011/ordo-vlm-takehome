@@ -5,6 +5,9 @@ measured across a quantization ladder against a self-shot 32-photo
 text-in-the-wild eval set.
 
 > **Status: in progress.** Sections fill in as results land.
+> Companion documents: [report/LAB_NOTES.md](report/LAB_NOTES.md) — every
+> measurement and finding, chronologically; [report/JOURNEY.md](report/JOURNEY.md)
+> — the decision log: what we chose, what we cut, what fought back, and why.
 
 ## 1. Getting it running
 
