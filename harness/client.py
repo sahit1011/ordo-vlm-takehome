@@ -49,6 +49,9 @@ def query(server: str, image_path: str, question: str,
         "seed": 42,
         "stream": True,
         "timings_per_token": True,
+        # measurement integrity: without this, repeat queries on the same image
+        # reuse cached vision tokens and report near-zero TTFT/prefill
+        "cache_prompt": False,
     }
 
     t_start = time.monotonic()

@@ -16,6 +16,7 @@ cmake -S "$SRC" -B "$BUILD" \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_FLAGS="-march=armv8.7-a+i8mm+dotprod" \
   -DCMAKE_CXX_FLAGS="-march=armv8.7-a+i8mm+dotprod" \
+  -DGGML_CPU_KLEIDIAI=ON \
   -DGGML_OPENMP=OFF \
   -DLLAMA_CURL=OFF
 

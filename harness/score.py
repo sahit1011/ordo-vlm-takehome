@@ -13,8 +13,9 @@ import unicodedata
 def normalize(s: str) -> str:
     s = unicodedata.normalize("NFKC", s).lower()
     s = s.replace("₹", " rs ").replace("$", " usd ")
-    s = re.sub(r"[^\w\s.]", " ", s)          # drop punctuation, keep decimals
-    s = re.sub(r"\b(\d+)\.0+\b", r"\1", s)   # 180.00 -> 180
+    s = re.sub(r"[^\w\s.]", " ", s)               # drop punctuation
+    s = re.sub(r"(?<!\d)\.|\.(?!\d)", " ", s)     # keep dots only inside numbers
+    s = re.sub(r"\b(\d+)\.0+\b", r"\1", s)        # 180.00 -> 180
     return re.sub(r"\s+", " ", s).strip()
 
 
@@ -37,14 +38,19 @@ def levenshtein(a: str, b: str) -> int:
 
 
 def anls(prediction: str, answer: str, accept_also: str = "", tau: float = 0.5) -> float:
-    """Average Normalized Levenshtein Similarity (DocVQA-style), best over aliases."""
-    pred = normalize(prediction)
+    """ANLS (DocVQA-style), best over aliases.
+
+    Models answer in full sentences while ground truth is a short fact, so we
+    score the best-matching token span of the prediction, not the whole string.
+    """
+    pred_tokens = normalize(prediction).split()
     best = 0.0
     for c in [answer] + [a for a in accept_also.split("|") if a.strip()]:
         c = normalize(c)
-        if not c and not pred:
-            best = max(best, 1.0)
-            continue
-        nl = levenshtein(pred, c) / max(len(pred), len(c), 1)
-        best = max(best, 1.0 - nl if nl < tau else 0.0)
+        n = max(len(c.split()), 1)
+        spans = [" ".join(pred_tokens[i:i + n])
+                 for i in range(max(len(pred_tokens) - n + 1, 1))] or [""]
+        for s in spans:
+            nl = levenshtein(s, c) / max(len(s), len(c), 1)
+            best = max(best, 1.0 - nl if nl < tau else 0.0)
     return best
