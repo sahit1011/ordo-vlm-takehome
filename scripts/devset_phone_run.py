@@ -38,9 +38,10 @@ def cool():
         time.sleep(30)
 
 
-rows = list(csv.DictReader(open(ROOT / "eval/dev_ground_truth.csv")))
-# include the one real photo's two questions
-rows += [r for r in csv.DictReader(open(ROOT / "eval/smoke_gt.csv")) if r["id"].startswith("p01")]
+GT = sys.argv[3] if len(sys.argv) > 3 else "eval/dev_ground_truth.csv"
+rows = list(csv.DictReader(open(ROOT / GT)))
+if "dev_ground_truth" in GT:
+    rows += [r for r in csv.DictReader(open(ROOT / "eval/smoke_gt.csv")) if r["id"].startswith("p01")]
 
 cool()
 r = requests.post(f"{DASH}/api/server", data={"engine": "phone-gpu", "config": CONFIG,

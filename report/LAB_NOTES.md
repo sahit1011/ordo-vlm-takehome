@@ -421,6 +421,81 @@ Provenance caveat: 24/30 items are WhatsApp-recompressed, 3 screenshots,
 photos; also missing menu/receipt/handwriting/appliance categories; skews
 easy: 17/10/3).
 
+### Runtime scouting round-up (Day 3 evening)
+
+- **GenieX (Qualcomm)**: open-source, GGUF VLMs on Hexagon/GPU/CPU — but
+  Android integration is **Gradle-SDK-only** (no adb-pushable binaries, no
+  server mode), documented devices are Snapdragon **8 Elite / 8 Elite Gen 5**
+  (SM8845 not listed). Verdict: docs-only "what it would take" writeup unless
+  time surplus appears.
+- **LiteRT / AI Edge Gallery**: LiteRT cannot run Qwen3-VL at all (vision
+  catalog is Gemma-family). Gallery per-SoC APK (sm8850 build) **installs
+  cleanly on the SM8845**; Gemma-3n datapoint pending user's HF-login model
+  download in-app. NPU delegate: early-access gated.
+- **MNN (Alibaba) — the real second runtime.** In-app benchmark on our phone,
+  Qwen3-VL-2B, PP128/TG128:
+  | Backend | Prefill | Decode | Peak mem |
+  |---|---|---|---|
+  | OpenCL | 255.5 ± 46 t/s | 22.6 t/s | 2.5 GB |
+  | CPU | 78.7 ± 7 t/s | **24.6 t/s** | 4.5 GB |
+  Backend list on this device: **CPU + OpenCL only — no QNN/NPU exposed.**
+  vs llama.cpp: GPU ≈ tie (decode bandwidth-bound both; prefill not better at
+  长 context), **CPU decisively healthier** (24.6 t/s decode where llama.cpp
+  CPU decode is pathological on this phone) → MNN-CPU is the better
+  device-agnostic tier. Vision-encode time NOT covered by their benchmark —
+  measuring ourselves via MNN CLI (NDK cross-compile like llama.cpp,
+  `-DMNN_BUILD_LLM=ON -DMNN_OPENCL=ON`; engine also has `-DMNN_QNN=ON` plugin
+  worth one experiment). Build + MNN-format model download in flight.
+- Every zero-integration NPU path on this device is now exhausted: the serial
+  encoder wall (~2.5 s) stands across llama.cpp ×3 builds and MNN ×2 backends.
+
+### Rich-intermediate resize: falsified (trilogy complete)
+
+2016 px patch-aligned Lanczos intermediate → answers got WORSE ('190'/'white').
+With v2 (1344 px) and v3 (2016 px) both failing while server-side resize from
+the 12 MP original succeeds at the same ~545–564 token count: **any client-side
+resample destroys knife-edge glyphs; only single-pass resize from original
+pixels preserves them.** Full-accuracy perceived floor: 1.17–1.46 s
+(full-res upload). 0.25–0.44 s tier = big-text queries only.
+
+### Ops lessons (accumulating)
+
+- `socd` thermal zone = battery state-of-charge masquerading as 57 °C
+  (fake-sensor #3; excluded with trip/ibat).
+- Wireless adb can drop mid-chain (transient "device offline") — scripts need
+  retries; runs crash-recover from JSONL.
+- Benchmark apps (MNN Chat) park multi-GB engines after use — freed 2.4 GB by
+  force-stop; always sweep foreign AI apps before measuring.
+- API image-count ceiling in long sessions → all screenshot/photo viewing
+  delegated to fresh-context subagents (GT drafting, app driving, screenshot
+  reading all ran as agents successfully).
+- User decision: LoRA deferred; current focus = runtime × encode-latency
+  frontier on Qwen3-VL-2B.
+
+### MNN CLI on-device (our own build, NDK cross-compile, dashboard-grade test)
+
+Build: shared-libs required (their LLM cmake breaks static); OpenCL driver libs
+copied local (vendor-path linker landmine, MNN flavor: trips on power-HAL lib).
+Qwen3-VL-2B-MNN (their official conversion), greedy sampling, on our phone:
+
+- **Cold-start e2e (load + encode + answer): 7.5–9.2 s** — remarkable; llama.cpp
+  needs ~13 s load alone. MNN's mmap/init is the best cold-start measured.
+- **Vision accuracy: fails items llama.cpp passes at comparable pixel budgets.**
+  Default `image_size: 420` → "1000 tablets"; `<hw>1148,1540</hw>` override →
+  "500 tablets"; brand question (our 540-token tier gets "TATA" right) →
+  hallucinated "Nature's Answer". Their image preprocessing loses fine print —
+  4th confirmation of resample sensitivity, now cross-runtime.
+- No stage timing in llm_demo without patching; llm_bench is text-only.
+
+**Runtime hunt CLOSED.** Across llama.cpp (CPU/OpenCL/compat), MNN (app +
+our CLI, CPU/OpenCL), GenieX (device-gated), LiteRT (no Qwen support),
+AI Edge Gallery (Gemma-only): **llama.cpp + Adreno remains the best
+accuracy-per-second stack on this device**; MNN's niches are cold-start
+(7.5 s e2e!) and CPU-only devices (working 24.6 t/s decode). No accessible
+runtime reaches <1 s serial encode at reading accuracy on SM8845 —
+the caching architecture is not merely the best route to <1 s perceived,
+it is the only one, now proven exhaustively.
+
 ### Open items
 
 - [ ] Encoder A/B on phone: mtmd on OpenCL vs CPU (decides TTFT story)

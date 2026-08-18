@@ -143,6 +143,49 @@ query class; NPU (GenieX) as the lever that could collapse the serial path;
 LoRA to claw back capped-budget accuracy. Final validation gated on the
 32-photo eval set.
 
+## Day 3 (late) — the requirements triangle and the runtime hunt
+
+**The user set the final bar**: <1 s (ideally <500 ms) including encode, no
+accuracy compromise, device-agnostic. Our analysis: that's a pick-two triangle
+on today's silicon. Response was three-pronged: squeeze the GPU serial path
+(closed — knobs don't move it; F16 encoder falsified at 1.9× slower), keep the
+caching architecture (meets the bar as *perceived* latency), and hunt a
+second runtime for the serial encoder.
+
+**Resize falsification trilogy.** Three attempts to make phase-B uploads cheap
+by client-side resizing (1344 px, patch-aligned Lanczos, 2016 px rich
+intermediate) all destroyed knife-edge digits that server-side resize from the
+same original preserves at the same token count. Conclusion: never resample
+twice; the fast tier is for big-text queries only. Negative results, fully
+banked.
+
+**The bracket grew to five on user request** (+ a <1B slot). Real photos
+arrived (user's "ordo-dataset" album: 30 items — flagged honestly: 24 are
+WhatsApp-sourced, provenance-labeled; camera replacements requested). The
+real set **discriminated what synthetics couldn't**: 47→87% spread vs
+92–100% compression — the eval-validity finding of the project. The 450M's
+synthetic heroics collapsed on real photos (+30 pt inflation); the champion
+held (26/30).
+
+**Runtime scouting, honestly:** GenieX = SDK-only, device-list excludes our
+chip → docs-only. LiteRT = can't run Qwen3-VL at all. AI Edge Gallery = per-SoC
+APK installs, Gemma datapoint pending. MNN Chat app = the real find: healthy
+CPU decode where llama.cpp's is broken, OpenCL ≈ tie with our stack, and **no
+NPU option exposed on SM8845** — closing every zero-integration NPU door. So
+the encoder wall (~2.5 s serial) is now evidenced across two engines × five
+backends. Next: MNN CLI cross-compiled into our own dashboard (their engine
+has an unexposed QNN plugin flag — one experiment left).
+
+**Process evolution under fire:** a hit API image ceiling turned all visual
+work (GT drafting for 30 photos, app UI driving, screenshot reading) into
+subagent delegations — which worked well enough to become the standing
+pattern. Ops: wireless adb drops mid-chain, benchmark apps parking gigabytes
+(MNN held 2.4 GB after use), fake-sensor #3 (`socd` = battery %, not 57 °C).
+
+**Deliberate deferral:** LoRA parked by user decision to concentrate on the
+runtime × encode frontier. Part 4 closed with the day's best sentence:
+sustained load costs a stable 40% throughput tax and zero accuracy.
+
 ## Standing process rules (earned, not assumed)
 
 - Validate the whole pipeline on the dev box before the device.
