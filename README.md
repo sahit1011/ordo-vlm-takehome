@@ -209,6 +209,18 @@ architecturally.** Serially it exists only at reduced accuracy (@96 → 0.82 s
 at 37% — the fast tier), so caching remains the only path to sub-second
 *with* the fine print.
 
+### Proof trail
+
+Every inference of the entire experiment is one row in the append-only ledger
+(`results/dashboard_runs.jsonl`), exported chronologically as
+**`results/history_all_runs.csv`** — timestamp, device, runtime, engine,
+variant, token cap, measured tokens, encoder/decoder placement (with evidence
+class), full stage timings, thermals, RAM, the exact question, raw answer,
+ground truth, and verdict. Every table in this README and in
+`report/SUBMISSION.md` aggregates those rows; the dashboard renders them with
+per-run drill-down (original image, reconstructed model input, stage
+waterfall). The CSV regenerates with every report render — it cannot drift.
+
 ### Day 4: kernel coverage, the tuning grid, and the sub-second club
 
 The deep result of the runtime hunt, sharpened by measurement (full grids in

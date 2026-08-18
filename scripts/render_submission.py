@@ -41,6 +41,9 @@ li { margin: 2pt 0; }
 
 
 def main():
+    import export_history_csv
+    n = export_history_csv.export()
+    print(f"history csv: {n} rows")
     md_text = MD.read_text()
     body = markdown.markdown(md_text, extensions=["tables", "sane_lists", "smarty"])
 

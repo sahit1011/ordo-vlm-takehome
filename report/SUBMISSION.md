@@ -3,6 +3,8 @@
 **Submission report** · Anil Sahith · OnePlus 15R (Snapdragon SM8845, 12 GB) · champion: Qwen3-VL-2B Q4_0 · llama.cpp + Adreno GPU
 *Living document — regenerated as pending runs land. Companion detail: [LAB_NOTES.md](LAB_NOTES.md) (every measurement) · [JOURNEY.md](JOURNEY.md) (decision log) · [QA.md](QA.md) · [BEST_RESULT.md](BEST_RESULT.md) · live dashboard (`dashboard/`) with per-run drill-down.*
 
+**Provenance.** Every inference in this project — every model, runtime, backend, token budget, on both devices — is one row in an append-only ledger, exported chronologically to [`results/history_all_runs.csv`](../results/history_all_runs.csv) (regenerated with every render of this document). Each row carries the full history columns: timestamp, device/runtime/engine, variant, token cap, measured prompt tokens, encoder/decoder placement with its evidence, TTFT/encode/prefill/decode timings, peak RAM & SoC temperature, the exact question, the model's raw answer, the ground truth it was scored against, and the verdict. Every table in this report is an aggregation of those rows; nothing was measured off-ledger.
+
 ---
 
 ## Part 1 — Getting a vision model onto a phone ✅
