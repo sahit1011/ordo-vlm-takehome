@@ -401,6 +401,26 @@ mode for measurement, cache only in product-mode runs (flagged in records).
   SmolVLM-500M (22/24, hard 4/6). On-device: Qwen3-2B 25/26 @4.1 s p50 ≫
   Qwen2.5-3B (accurate, 8.6 s p50, encoder 2× slower on Adreno).
 
+### Real-photo eval (ordo-dataset, 30 items, draft GT, Mac @576 v2)
+
+| Model | Real | Synthetic | Note |
+|---|---|---|---|
+| Qwen3-VL-2B Q4 | **26/30** | 24/24 | champion confirmed |
+| LFM2-VL-1.6B Q4 | 24/30 | 24/24 | beats Qwen2.5-3B on real photos |
+| Qwen2.5-VL-3B Q4_0 | 23/30 | 23/24 | |
+| LFM2-VL-450M Q8 | 18/30 | 24/26 | synthetic inflated by +30 pts |
+| SmolVLM2-2.2B | 16/30 | 24/24 | capped budget kills it on real data |
+| SmolVLM-500M | 14/30 | 22/24 | |
+
+**Eval-validity finding (assignment: "how would you know the set is any
+good?"):** the real set discriminates a 47→87% spread that the synthetic set
+compressed to 92–100%. Rendered text is too clean — small models pass it and
+fail reality. Synthetic sets are pipeline tools, never accuracy evidence.
+Provenance caveat: 24/30 items are WhatsApp-recompressed, 3 screenshots,
+3 camera — final set needs camera-shot replacements (assignment requires own
+photos; also missing menu/receipt/handwriting/appliance categories; skews
+easy: 17/10/3).
+
 ### Open items
 
 - [ ] Encoder A/B on phone: mtmd on OpenCL vs CPU (decides TTFT story)
