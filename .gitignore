@@ -1,0 +1,13 @@
+# model weights — too big for git, download via scripts/download_models.sh
+models/
+*.gguf
+
+# tooling / caches
+__pycache__/
+.venv/
+.DS_Store
+.cache/
+tools/
+
+# raw server logs (parsed summaries in results/ are committed)
+results/raw/
