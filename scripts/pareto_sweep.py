@@ -33,6 +33,10 @@ SWEEP = [
     ("lfm2-q4", 0,   QUERIES_FULL),
     ("lfm2-q4", 0,   QUERIES_1024),
 ]
+BRIEF = " Answer briefly with just the fact."  # protocol v2
+
+if len(sys.argv) > 1 and sys.argv[1] == "qwen3":
+    SWEEP = [("qwen3-2b-q4", 576, QUERIES_FULL), ("qwen3-2b-q4", 0, QUERIES_FULL)]
 
 
 def soc_temp():
@@ -66,7 +70,7 @@ for config, imt, queries in SWEEP:
         with open(p, "rb") as f:
             rec = requests.post(f"{DASH}/api/infer", timeout=1200,
                                 files={"image": (p.name, f, "image/jpeg")},
-                                data={"question": q, "max_tokens": 48}).json()
+                                data={"question": q + BRIEF, "max_tokens": 96}).json()
         if "error" in rec:
             print(f"  {img.split('/')[-1]}: ERROR {rec['error']}", flush=True)
             continue

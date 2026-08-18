@@ -37,9 +37,17 @@ UPLOADS = ROOT / "results/raw/uploads"
 ENCODE_RE = re.compile(r"(?:image|slice).{0,40}?(?:encod|process)\w*\s+in\s+(\d+)\s*ms", re.I)
 
 ENGINES = {
-    "phone-gpu": {"dir": "ocl", "ld": f"{PHONE_DIR}/ocl:/vendor/lib64", "ngl": "99"},
-    "phone-cpu": {"dir": "cpu", "ld": f"{PHONE_DIR}/cpu", "ngl": None},
-    "mac":       {},
+    "phone-gpu": {"dir": "ocl", "ld": f"{PHONE_DIR}/ocl:/vendor/lib64", "ngl": "99",
+                  "runtime": "llama.cpp", "device": "Adreno GPU (OpenCL)", "available": True},
+    "phone-cpu": {"dir": "cpu", "ld": f"{PHONE_DIR}/cpu", "ngl": None,
+                  "runtime": "llama.cpp", "device": "CPU (i8mm/KleidiAI)", "available": True},
+    "phone-compat": {"dir": "compat", "ld": f"{PHONE_DIR}/compat", "ngl": None,
+                     "runtime": "llama.cpp", "device": "CPU portable (any arm64 Android 8+)", "available": True},
+    "mac":       {"runtime": "llama.cpp", "device": "M3 Pro Metal (dev ref)", "available": True},
+    # roadmap runtimes — selectable once integrated; kept visible so the run
+    # matrix shows what a full runtime comparison would cover
+    "litert-npu":  {"runtime": "LiteRT/MediaPipe", "device": "GPU/NPU (Gemma-class)", "available": False},
+    "qnn-genie":   {"runtime": "Qualcomm Genie", "device": "Hexagon NPU", "available": False},
 }
 
 app = FastAPI()
@@ -117,7 +125,9 @@ def configs():
         f = ROOT / "models" / cfg["model"]
         out.append({"name": name, "model": cfg["model"], "mmproj": cfg["mmproj"],
                     "size_gb": round(f.stat().st_size / 1e9, 2) if f.exists() else None})
-    return {"configs": out, "engines": list(ENGINES),
+    return {"configs": out,
+            "engines": [{"name": k, "runtime": v.get("runtime"), "device": v.get("device"),
+                         "available": v.get("available", False)} for k, v in ENGINES.items()],
             "imt_options": [0, 256, 576, 1024]}
 
 
@@ -163,6 +173,9 @@ def connect(addr: str = Form(...), code: str = Form(None)):
 def start_server(engine: str = Form(...), config: str = Form(...),
                  threads: int = Form(6), imt: int = Form(576)):
     with lock:
+        if not ENGINES.get(engine, {}).get("available"):
+            return JSONResponse({"error": f"runtime '{engine}' is not integrated yet — see lab notes roadmap"},
+                                status_code=400)
         cfg = CONFIGS[config]
         stop_server()
         extra = f"--image-max-tokens {imt}" if imt else ""
@@ -235,6 +248,7 @@ def infer(image: UploadFile = File(...), question: str = Form(...),
         rec = {
             "ts": time.time(),
             "engine": state["engine"], "config": state["config"],
+            "runtime": ENGINES.get(state["engine"], {}).get("runtime"),
             "imt": state["imt"], "threads": state["threads"],
             "image": path.name, "question": question,
             "answer": res["text"],
@@ -318,6 +332,7 @@ def infer_stream(image: UploadFile = File(...), question: str = Form(...),
         prompt_ms = timings.get("prompt_ms")
         rec = {
             "ts": time.time(), "engine": state["engine"], "config": state["config"],
+            "runtime": ENGINES.get(state["engine"], {}).get("runtime"),
             "imt": state["imt"], "threads": state["threads"],
             "image": path.name, "question": question, "answer": "".join(pieces).strip(),
             "correct": None,

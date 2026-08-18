@@ -254,6 +254,71 @@ prefill 260 tok/s (Qwen-3B Q4_0, Adreno):
   class) for big-text scenes; Qwen-3B@576 for fine print. To validate on the
   full eval set.
 
+### Phone Pareto sweep #1 (cool-gated, Adreno GPU, steady-state)
+
+| Config | TTFT | Encode | Prefill | Decode | Fine print |
+|---|---|---|---|---|---|
+| Qwen2.5-3B @576 | **7.5 s** | 3.8 s | 237 t/s | 18 t/s | ✓ |
+| Qwen2.5-3B @256 | 4.0 s | 1.7 s | 246 t/s | 20 t/s | ✗ hallucinates |
+| LFM2 easy (254 tok) | 6.3 s | 5.8 s | 589 t/s | 55 t/s | ✓ big text |
+| LFM2 full (1.8k tok) | 45 s | 41 s | 650 t/s | 48 t/s | ✓ unusable |
+| LFM2 @1024px input | 6.3 s | 5.7 s | 559 t/s | 50 t/s | ✗ |
+
+- First query after server start carries ~3 s OpenCL warmup in encode.
+- **Encoder speed flips across platforms**: LFM2 encoder fast on Metal, ~4×
+  slower per token than Qwen on Adreno; forced-CPU is even worse (9–10 s easy
+  scene) → encoder speed is a property of model×runtime×silicon, not model.
+  LFM2 out of the phone speed tier despite superb decoder (650 pf / 50 dec).
+- On-device confirmation: @256 hallucinates exactly as on Mac.
+
+### Protocol v2 + Qwen3-VL-2B
+
+- **Truncation confound found**: verbose models (Qwen3-VL) spend 48 max_tokens
+  on preamble before the fact → scored wrong despite knowing. Fix (protocol
+  v2, uniform, product-realistic): append "Answer briefly with just the fact."
+  + max_tokens 96. All final numbers re-run under v2.
+- **Qwen3-VL-2B under v2, native res (Mac): 3/3 — "240" / "Watermelon Wave" /
+  "120"** — best accuracy of any model tested, incl. exact flavour name. Cost:
+  ~4k image tokens. At @576 it collapses (hallucinates "Mushroom"/"liquid") —
+  its DeepStack ViT needs resolution more than Qwen2.5's. Engine: 1002 MiB,
+  Metal pp 1372 / tg 104; CPU pp 407 / tg 96 (≈2× Qwen2.5-3B).
+- Landscape: Qwen3-2B = accuracy champion at high budget; Qwen2.5-3B = best at
+  capped budget; LFM2 = Mac-only speed tier; NPU claims (pasted advice) map to
+  Qualcomm Genie/Hexagon stack, not LiteRT/llama.cpp — LiteRT+QNN added as
+  planned runtimes in dashboard; runtime-gap experiment: same Qwen3-VL-2B on
+  our stack vs Qualcomm's published 8 Elite numbers.
+- Portable build variant added (`build_android_compat.sh`, armv8.2-a+dotprod,
+  CPU-only, runtime KleidiAI dispatch) → runs on any recent arm64 Android;
+  registered as `phone-compat` engine in dashboard.
+
+### The <1 s answer: two-phase caching (measured on-device, Qwen3-2B@576, Adreno)
+
+Product insight: the camera frame exists before the user finishes speaking →
+encode + image prefill run during speech (llama-server `cache_prompt`), and
+perceived TTFT = text prefill + first token. Measured:
+
+| Path | Perceived TTFT | Fine print |
+|---|---|---|
+| Serial (no cache) | 8.8 s | ✓ |
+| **Cached, full-res image** | **1.17–1.46 s** | ✓ ("120") |
+| Cached + pre-resized (~540 tok) | **0.25–0.37 s** | ✗ knife-edge digits flip ("10") |
+
+- Cache hit confirmed (cache_n 569); follow-up questions on the same scene
+  are ~1.2 s (full-res) / ~0.3 s (resized) — Ordo's multi-question flow is
+  nearly free.
+- **The resolution knife edge**: server-side smart-resize from 12 MP @576
+  → 564 tokens reads "120"; client-side resize to ~540 tokens loses the
+  digit ("10") — a 4% pixel difference flips the smallest text. Patch-aligned
+  Lanczos did not rescue it (double-resample + fewer tokens). Robust config:
+  full-res upload in the hidden phase, same bytes re-sent on query (the
+  1.2–1.5 s number); the remaining overhead is re-upload + 12 MP re-decode +
+  hash, not model time.
+- Verdict for the report: **<1 s perceived TTFT is achieved architecturally**
+  for brand/big-text queries; **~1.2–1.5 s with full fine-print accuracy**;
+  serial-path floor stays ~5 s. NPU (GenieX) is the lever that could make the
+  serial path itself ~1–2 s. Native-res accuracy (3/3) costs 138.7 s serial
+  on-device — measured once, never again.
+
 ### Open items
 
 - [ ] Encoder A/B on phone: mtmd on OpenCL vs CPU (decides TTFT story)

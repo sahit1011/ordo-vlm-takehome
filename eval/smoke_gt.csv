@@ -1,0 +1,4 @@
+id,file,category,difficulty,conditions,question,answer,accept_also,notes
+s01,photos/smoke.png,menu,easy,synthetic,How much does the paneer tikka cost?,240,rs 240|₹240,smoke test
+p01a,photos/p01_supplements.jpg,product-label,medium,indoor cluttered shelf mixed text sizes,What flavour is the creatine?,watermelon,watermelon wave,real user photo
+p01b,photos/p01_supplements.jpg,product-label,medium,indoor cluttered shelf small text,How many tablets are in the Vitamin D3 K2 bottle?,120,120 tablets,real user photo

@@ -1,0 +1,6 @@
+=== Qwen3-VL-2B Q4_0 (Metal)
+| qwen3vl 1.7B Q4_0              | 1002.15 MiB |     1.72 B | MTL,BLAS   |       5 |           pp512 |       1372.07 ± 2.74 |
+| qwen3vl 1.7B Q4_0              | 1002.15 MiB |     1.72 B | MTL,BLAS   |       5 |            tg64 |        103.89 ± 0.60 |
+=== Qwen3-VL-2B Q4_0 (CPU)
+| qwen3vl 1.7B Q4_0              | 1002.15 MiB |     1.72 B | MTL,BLAS   |       5 |           pp512 |       406.52 ± 10.16 |
+| qwen3vl 1.7B Q4_0              | 1002.15 MiB |     1.72 B | MTL,BLAS   |       5 |            tg64 |         96.11 ± 1.24 |

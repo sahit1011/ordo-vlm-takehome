@@ -45,6 +45,7 @@ CONFIGS = {
     "smol500-q8": {"model": "SmolVLM-500M-Instruct-Q8_0.gguf",   "mmproj": "mmproj-SmolVLM-500M-Instruct-Q8_0.gguf"},
     "smol22-q4":  {"model": "SmolVLM2-2.2B-Instruct-Q4_K_M.gguf", "mmproj": "mmproj-SmolVLM2-2.2B-Instruct-Q8_0.gguf"},
     "lfm2-q4":    {"model": "LFM2-VL-1.6B-Q4_0.gguf",              "mmproj": "mmproj-LFM2-VL-1.6B-Q8_0.gguf"},
+    "qwen3-2b-q4": {"model": "Qwen3-VL-2B-Instruct-Q4_0.gguf",     "mmproj": "mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf"},
     "lfm2-q8":    {"model": "LFM2-VL-1.6B-Q8_0.gguf",              "mmproj": "mmproj-LFM2-VL-1.6B-Q8_0.gguf"},
 }
 
@@ -130,7 +131,10 @@ def main():
     ap.add_argument("--target", choices=["mac", "phone"], required=True)
     ap.add_argument("--configs", default="q4", help="comma-separated CONFIGS keys")
     ap.add_argument("--repeats", type=int, default=1)
-    ap.add_argument("--max-tokens", type=int, default=48)
+    ap.add_argument("--max-tokens", type=int, default=96)
+    ap.add_argument("--brief", action="store_true", default=True,
+                    help="append a brevity instruction (voice-style answers); "
+                         "protocol v2 — all runs from 2026-08-18 evening onward")
     ap.add_argument("--threads", type=int, default=6, help="phone decode threads")
     ap.add_argument("--image-max-tokens", type=int, default=None,
                     help="cap vision tokens per image (encode/TTFT lever)")
@@ -161,8 +165,9 @@ def main():
                     img = str(ROOT / "eval" / it["file"])
                     sampler = metrics.Sampler() if args.target == "phone" else None
                     ctx = sampler if sampler else _null()
+                    q = it["question"] + (" Answer briefly with just the fact." if args.brief else "")
                     with ctx:
-                        res = client.query(srv.url, img, it["question"],
+                        res = client.query(srv.url, img, q,
                                            max_tokens=args.max_tokens)
                     rec = {
                         "config": name, "target": args.target, "rep": rep,

@@ -186,7 +186,7 @@
     <div style="overflow-x:auto">
     <table>
       <thead><tr>
-        <th>time</th><th>engine</th><th>variant</th><th>imt</th><th>ttft s</th>
+        <th>time</th><th>runtime</th><th>engine</th><th>variant</th><th>imt</th><th>ttft s</th>
         <th>encode ms</th><th>prefill t/s</th><th>decode t/s</th><th>peak °C</th><th>ram mb</th><th>answer</th>
       </tr></thead>
       <tbody id="histBody"></tbody>
@@ -208,7 +208,9 @@ async function boot() {
   $("cfg").innerHTML = c.configs.map(x =>
     `<option value="${x.name}">${x.name}${x.size_gb ? " · " + x.size_gb + " GB" : ""}</option>`).join("");
   $("cfg").value = "q4_0";
-  $("eng").innerHTML = c.engines.map(e => `<option>${e}</option>`).join("");
+  $("eng").innerHTML = c.engines.map(e =>
+    `<option value="${e.name}" ${e.available ? "" : "disabled"}>` +
+    `${e.name} — ${e.runtime} · ${e.device}${e.available ? "" : " (planned)"}</option>`).join("");
   $("eng").value = "phone-gpu";
   $("imt").innerHTML = c.imt_options.map(v =>
     `<option value="${v}">${v === 0 ? "native (uncapped)" : v}</option>`).join("");
@@ -441,7 +443,7 @@ function addRow(r) {
   $("histEmpty").style.display = "none";
   const tr = document.createElement("tr");
   tr.innerHTML =
-    `<td>${new Date(r.ts * 1000).toLocaleTimeString()}</td><td>${r.engine}</td><td>${r.config}</td>` +
+    `<td>${new Date(r.ts * 1000).toLocaleTimeString()}</td><td>${r.runtime || "llama.cpp"}</td><td>${r.engine}</td><td>${r.config}</td>` +
     `<td>${r.imt || "native"}</td><td>${fmt(r.ttft_s, 2)}</td><td>${r.encode_ms ?? "–"}</td>` +
     `<td>${fmt(r.prefill_tps)}</td><td>${fmt(r.decode_tps)}</td>` +
     `<td>${r.peak_soc_temp_c ? fmt(r.peak_soc_temp_c) : "–"}</td><td>${r.peak_ram_mb ?? "–"}</td>` +
