@@ -1,11 +1,13 @@
 # Lab notes — running observations
 
 Chronological record of every experiment, bug, and behavior change.
+The entire project ran as ONE ~12-hour session: Aug 18 15:00 → Aug 19 03:00
+(first ledger row 15:05, last 02:58). Section headers give session hours.
 The final report (README) is assembled from here. Newest entries at the bottom.
 
 ---
 
-## Day 1–2 (2026-08-18)
+## Hours 0–5 (Aug 18, 15:00–20:00)
 
 ### Setup & porting observations
 
@@ -119,7 +121,7 @@ Demonstrates why the 32-photo eval set matters before any accuracy claims.
   OPEN QUESTION — timeboxed; GPU chosen regardless.
 - Wi-Fi adb push throughput: ~5–11 MB/s. Budget ~3 min/GB for transfers.
 
-### Working optimized config (as of Day 2 end)
+### Working optimized config (as of hour 5)
 
 **Qwen2.5-VL-3B Q4_0 + mmproj Q8_0 + `--image-max-tokens 576` + Adreno GPU
 (`-ngl 99`)** — projected TTFT ~4–6 s on-device if the vision encoder also runs
@@ -421,7 +423,7 @@ Provenance caveat: 24/30 items are WhatsApp-recompressed, 3 screenshots,
 photos; also missing menu/receipt/handwriting/appliance categories; skews
 easy: 17/10/3).
 
-### Runtime scouting round-up (Day 3 evening)
+### Runtime scouting round-up (hours 7–9, late evening)
 
 - **GenieX (Qualcomm)**: open-source, GGUF VLMs on Hexagon/GPU/CPU — but
   Android integration is **Gradle-SDK-only** (no adb-pushable binaries, no
@@ -789,7 +791,7 @@ ngl 99 the weights sit in GPU buffers while ops run on CPU, so every decode
 step round-trips data — **offloading Q2_K isn't just useless, it's 70×
 destructive** (0.43 vs 30 t/s). Pure-CPU Q2_K actually decodes fine (30 t/s —
 the CPU's repacked kernels like it); it's the ~34 t/s CPU prefill that kills
-TTFT (~18 s @576). Also retro-explains the day-2 "pathological 0.4 t/s"
+TTFT (~18 s @576). Also retro-explains the hour-4 "pathological 0.4 t/s"
 sightings: that number is the offloaded-but-unsupported signature. 26 Q2
 ledger rows stamped with the ablation verdict.
 
@@ -831,7 +833,7 @@ sub-second club: Qwen @96 12/30, @128 14/30 vs LFM2/Smol 1-tile 9/30 each
 Trio v2 (fixed CPU engine, judge-scored): qwen @128 14/30 · smol 1-tile 9/30 ·
 lfm2 1-tile 9/30 — backend-invariance 3/3, CPU TTFTs now honest physics.
 Cached warm-on-drop rows minted (ledger, full-res 12 MP uploads): perceived
-1.52–2.60 s — day-3's 1.17–1.46 s figure ratified in class; the 0.25–0.44 s
+1.52–2.60 s — the evening's 1.17–1.46 s figure ratified in class; the 0.25–0.44 s
 tier remains the right-sized-capture variant.
 
 ### CPU-column anatomy (user-spotted): why same-variant TTFTs spread 2.5–11 s
@@ -845,7 +847,7 @@ collapses under sustained load**: 78→15 t/s within one cell (peaks 58–75 °C
 between 4-query cool-gates) — at ~145 tokens that alone spans 1.9→9.6 s.
 (3) **server-mode decode pathology reproduces on the healthy binary**:
 0.3–0.4 t/s serving vs 45 t/s llama-bench on the same ocl -ngl 0 build — the
-day-2 mystery is MODE-dependent (suspect: governor downclocks during
+hour-4 mystery is MODE-dependent (suspect: governor downclocks during
 memory-stall-heavy decode in the serve loop; bench's tight loop keeps clocks
 up). First token at 0.3 t/s adds ~3 s to TTFT — the other half of the spread.
 Status: CPU decode pathology re-opened, precisely scoped (any build, server
@@ -871,7 +873,7 @@ mode, sustained). GPU path unaffected.
       re-run on the fixed engine.
 - [x] Full ladder on phone with thermal protocol — done (Q4_0/Q8_0 25/30,
       Q2_K CPU-bound, BF16 probe, MXFP4 Metal-only)
-- [x] Stress suite (Part 4) — done day 3
+- [x] Stress suite (Part 4) — done in the evening block (hours 7–9)
 - [x] Eval-set validity checks — done (synthetic 92–100% vs real 47–87%)
 - [ ] CPU-only fast-trio cells (qwen@128 / smol 1-tile / lfm2 1-tile) — running
 - [ ] Camera re-shoots for eval set (user) + GT review of draft csv (user)

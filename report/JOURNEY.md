@@ -6,7 +6,9 @@ each fork was taken. Dates are 2026-08.
 
 ---
 
-## Day 1 (08-18 morning) — framing and scaffolding
+**Timeline note:** the whole project is ONE ~12-hour session — Aug 18 15:00 → Aug 19 03:00 (first ledger row 15:05, last 02:58). Headers below are session hours.
+
+## Hour 0 (Aug 18, ~15:00) — framing and scaffolding
 
 **Decision: treat this as a measurement-engineering exercise, not a porting
 exercise.** The brief tips its hand ("separating encode/prefill/decode is most
@@ -17,7 +19,7 @@ the per-stage JSONL logging, the thermal gates — follows from this call.
 best OCR-class reader in 0.3–4 B, official multi-precision GGUFs (the whole
 ladder prebuilt — zero conversion work), first-class llama.cpp support, and a
 dynamic-resolution ViT giving a controllable image-token knob. (Later partially
-superseded by Qwen3-VL-2B — see Day 3 — which is the healthy outcome of
+superseded by Qwen3-VL-2B — see hours 6–8 — which is the healthy outcome of
 keeping the bracket open.)
 
 **Decision: llama.cpp as backbone runtime.** Only runtime giving every quant
@@ -35,14 +37,14 @@ adb from Google's zip, cmake via pip. Lesson: assume no admin rights anywhere.
 another tool (scripts must use `/bin/cp`); the NDK dmg mounts at a path with
 spaces; `--log-verbosity 1` silences llama-server entirely.
 
-## Day 1 (afternoon) — the measurement traps
+## Hours 1–3 (~16:00–18:00) — the measurement traps
 
 Validated the entire pipeline on the Mac *before* touching the phone — the
 single best process decision of the project. It surfaced four traps that would
 have silently corrupted every later number:
 
 1. Prompt caching fakes TTFT on repeats → `cache_prompt: false` for measurement
-   (and — beautifully — the same flag became the *product* answer on Day 3).
+   (and — beautifully — the same flag became the *product* answer by hour 8).
 2. llama-server has **no** vision-encode timing → patched
    `server-context.cpp` to log it. Assignment asked "what did you patch": this.
 3. The server's "prefill" secretly includes encode → decomposed in analysis.
@@ -52,7 +54,7 @@ have silently corrupted every later number:
 is a separate file, encoder and decoder quantize independently → 2D matrix
 instead of hand-waving about "which degrades faster".
 
-## Day 2 — the phone fights back
+## Hours 3–5 (~18:00–20:00) — the phone fights back
 
 **Wireless adb saga:** sandbox kept killing the adb daemon (persistent
 background server fixed it); pairing dialog timing; and the classic:
@@ -83,7 +85,7 @@ even cool/awake/no-mmap while prefill was healthy. Timeboxed out once the GPU
 proved stable (18.5 tok/s) — documented as open question rather than sunk cost.
 
 **Cut: NPU integration (initially).** Assessed as out of timebox; downgraded to
-a written analysis — then partially reversed on Day 3 when GenieX (open-source,
+a written analysis — then partially reversed later in the session when GenieX (open-source,
 OpenAI-compatible) surfaced and made a timeboxed attempt rational.
 
 **Decision: build the dashboard.** Turned the pile of scripts into an
@@ -91,7 +93,7 @@ instrument anyone can drive (connect phone → pick model/runtime/tokens → dro
 photo → live meters, stage waterfall, history). Also forced honest plumbing:
 every run lands in one JSONL regardless of who triggered it.
 
-## Day 2–3 — the model bracket earns its keep
+## Hours 5–6 (~20:00–21:00) — the model bracket earns its keep
 
 **SmolVLM (500M/2.2B):** 500M is fast and can't read labels (wrong tier);
 2.2B reads tiny text only via 7.8k-token brute force. At equal budget, Qwen
@@ -108,13 +110,13 @@ capping (dynamic-res pipelines downsample smarter than we do).
 wrong while knowing the answer. Fix: brevity instruction (product-realistic
 for voice) + higher token ceiling. Retroactively re-ran affected configs.
 
-**Qwen3-VL-2B takes the crown (Day 3):** under v2, 3/3 at native res (only
+**Qwen3-VL-2B takes the crown (hour ~6):** under v2, 3/3 at native res (only
 model to read "Watermelon Wave" exactly); at @576 on the phone it beats
 Qwen2.5-3B on *every* axis (TTFT 5.2 vs 7.5 s, prefill 2×, decode +40%,
 cooler) with equal accuracy. Cross-platform determinism observed: identical
 answers — including the same wrong one — on Metal and Adreno.
 
-## Day 3 — the 1-second question
+## Hours 6–7 (~21:00–22:00) — the 1-second question
 
 External pressure (user + an advice table quoting NPU-class targets) forced
 the question: why is TTFT 5 s? Decomposition said encoder 61% → three routes:
@@ -131,7 +133,7 @@ the question: why is TTFT 5 s? Decomposition said encoder 61% → three routes:
    right-sized** — versus 8.8 s serial. The flag we disabled for honest
    measurement became the product feature.
 
-**The resolution knife-edge (final Day-3 finding):** server-side resize from
+**The resolution knife-edge (hour-7 finding):** server-side resize from
 12 MP → 564 tokens reads "120"; our own resize to ~540 tokens reads "10".
 A 4% pixel difference flips the smallest digits — even patch-aligned Lanczos
 didn't save it (double resampling). The robust config uploads full-res during
@@ -143,7 +145,7 @@ query class; NPU (GenieX) as the lever that could collapse the serial path;
 LoRA to claw back capped-budget accuracy. Final validation gated on the
 32-photo eval set.
 
-## Day 3 (late) — the requirements triangle and the runtime hunt
+## Hours 7–8 (~22:00–23:00) — the requirements triangle and the runtime hunt
 
 **The user set the final bar**: <1 s (ideally <500 ms) including encode, no
 accuracy compromise, device-agnostic. Our analysis: that's a pick-two triangle
@@ -186,7 +188,7 @@ pattern. Ops: wireless adb drops mid-chain, benchmark apps parking gigabytes
 runtime × encode frontier. Part 4 closed with the day's best sentence:
 sustained load costs a stable 40% throughput tax and zero accuracy.
 
-## Day 3 night (08-18 evening) — the runtime gauntlet and the caching answer
+## Hours 8–9 (~23:00–24:00) — the runtime gauntlet and the caching answer
 
 **MNN CLI, built and beaten fairly.** Cross-compiled MNN with vision
 (`MNN_BUILD_OPENCV` — its absence makes MNN *silently ignore images*, trap #7,
@@ -211,7 +213,7 @@ answer clock starts at question end) measured 1.17–1.46 s perceived at full
 accuracy. Shipped as warm-on-drop in the dashboard. This reframing — *move the
 work, don't shrink it* — is the product answer to the assignment's 2 s budget.
 
-## Day 4 (08-18 late night → 08-19) — the kernel-coverage night
+## Hours 9–12 (Aug 19, 00:00–03:00) — the kernel-coverage hours
 
 **Decision: one submission document, one render command.** SUBMISSION.md
 (Parts 1–5, each with results/observations/journey/answers) + charts +

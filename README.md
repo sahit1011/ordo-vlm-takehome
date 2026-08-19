@@ -1,6 +1,6 @@
 # Ordo take-home — a vision model on a phone
 
-**Qwen3-VL-2B on a OnePlus 15R, measured to the millisecond.** Three runtimes
+**Qwen3-VL-2B on a OnePlus 15R, measured to the millisecond — built end-to-end in one 12-hour session (Aug 18 3 PM → Aug 19 3 AM).** Three runtimes
 built and raced, a quantization ladder with all stages separated, a real-photo
 eval set, stress tests, and an architecture that turns a 4-second pipeline into
 a sub-1.5-second experience.
@@ -127,7 +127,7 @@ dashboard/app.py` (live console at :8090, warm-on-drop caching built in) or
 
 ## 4. Results
 
-### Quantization ladder (Qwen2.5-VL-3B family, synthetic dev set n=24 — champion ladder re-measured on the 30 real photos, §4/Day 4)
+### Quantization ladder (Qwen2.5-VL-3B family, synthetic dev set n=24 — champion ladder re-measured on the 30 real photos, §4 final hours)
 
 | Precision | Size | Accuracy | GPU prefill t/s | GPU decode t/s |
 |---|---|---|---|---|
@@ -221,7 +221,7 @@ ground truth, and verdict. Every table in this README and in
 per-run drill-down (original image, reconstructed model input, stage
 waterfall). The CSV regenerates with every report render — it cannot drift.
 
-### Day 4: kernel coverage, the tuning grid, and the sub-second club
+### The final hours (Aug 19, 00:00–03:00): kernel coverage, the tuning grid, and the sub-second club
 
 The deep result of the runtime hunt, sharpened by measurement (full grids in
 `report/SUBMISSION.md`, every row in the dashboard ledger):
