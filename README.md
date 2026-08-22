@@ -1,4 +1,4 @@
-# Ordo take-home — a vision model on a phone
+# A vision model on a phone
 
 **Qwen3-VL-2B on a OnePlus 15R, measured to the millisecond — built end-to-end in one 12-hour session (Aug 18 3 PM → Aug 19 3 AM).** Three runtimes
 built and raced, a quantization ladder with all stages separated, a real-photo
