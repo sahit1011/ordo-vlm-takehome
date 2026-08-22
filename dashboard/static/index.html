@@ -120,9 +120,19 @@
          display: none; z-index: 10; }
 
   /* run detail modal */
-  #detail { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: none;
+  #detail, #anat { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: none;
             z-index: 20; overflow-y: auto; padding: 4vh 4vw; }
-  #detail.open { display: block; }
+  #detail.open, #anat.open { display: block; }
+  .gnode { border: 1px solid var(--ring); border-left: 4px solid #1baf7a; border-radius: 6px;
+           padding: 7px 10px; margin: 4px 0; font-size: 12px; background: rgba(255,255,255,.03); }
+  .gnode b { font-size: 12.5px; }
+  .gnode .ops { display: block; opacity: .6; font-size: 10.5px; margin-top: 2px; font-family: monospace; }
+  .gnode.cpu { border-left-color: #f0a04c; }
+  .gnode.bad { border-left-color: #e05555; }
+  .garrow { text-align: center; opacity: .4; font-size: 12px; line-height: 1; }
+  .gcol h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; opacity: .6; margin: 0 0 6px; }
+  .mixrow { display: flex; align-items: center; gap: 8px; font-size: 11.5px; margin: 2px 0; }
+  .mixbar { height: 8px; border-radius: 4px; background: #2a78d6; }
   .dcard { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px;
            max-width: 1100px; margin: 0 auto; padding: 22px; }
   .dhead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
@@ -183,6 +193,7 @@
     </div>
     <div class="row">
       <button class="btn ghost" id="startSrv">Start server</button>
+      <button class="btn ghost" onclick="openAnatomy()" title="GGUF metadata, computation graph, op placement per backend">model anatomy</button>
       <span id="srvState">no server</span>
     </div>
     <div id="drop" tabindex="0" role="button" aria-label="Choose or drop a photo">drop a photo here, or click to choose</div>
@@ -190,6 +201,10 @@
     <textarea id="q" placeholder="Ask about the photo — “how much is the paneer tikka?”"></textarea>
     <div class="row" style="margin-top:10px">
       <button class="btn" id="go" disabled>Run query</button>
+      <label class="f" style="margin:0">mode<select id="mode" style="width:auto">
+        <option value="cached">⚡ cached — warm-on-drop (product, perceived TTFT)</option>
+        <option value="serial">serial — full pipeline, no cache (lab)</option>
+      </select></label>
       <span id="runState" style="font:12px var(--mono);color:var(--ink-3)"></span>
     </div>
   </section>
@@ -219,6 +234,16 @@
   </section>
 </main>
 <div id="tip" role="tooltip"></div>
+<div id="anat" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="dcard">
+    <div class="dhead"><h2 style="margin:0">Model anatomy — computation graph &amp; op placement</h2><button class="dclose" onclick="$('anat').classList.remove('open')">close ✕</button></div>
+    <div class="chips" id="achips"></div>
+    <div id="amix" style="margin:10px 0"></div>
+    <div id="agraph" style="display:grid;grid-template-columns:1fr 1.3fr;gap:18px;align-items:start"></div>
+    <p id="afoot" style="font-size:11px;opacity:.55;margin-top:12px"></p>
+  </div>
+</div>
+
 <div id="detail" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="dcard">
     <div class="dhead"><h2 style="margin:0">Run detail</h2><button class="dclose" onclick="$('detail').classList.remove('open')">close ✕</button></div>
@@ -252,12 +277,43 @@ async function boot() {
     `<option value="${e.name}" ${e.available ? "" : "disabled"}>` +
     `${e.name} — ${e.runtime} · ${e.device}${e.available ? "" : " (planned)"}</option>`).join("");
   $("eng").value = "phone-gpu";
-  $("imt").innerHTML = c.imt_options.map(v =>
-    `<option value="${v}">${v === 0 ? "native (uncapped)" : v}</option>`).join("");
-  $("imt").value = "576";
+  refreshImt();
+  $("cfg").addEventListener("change", refreshImt);
   loadHistory();
 }
 boot();
+
+/* per-family operating points — the benchmarked grid, ★ = measured best default.
+   option value = "imt|prep": imt = server cap (Qwen smart-resize, server-side,
+   from ORIGINAL pixels); prep = client-side max-side downscale in px (the only
+   lever LFM2's tiler respects; 0 = send original). */
+const FAMILY_OPTS = cfg => {
+  if (cfg.startsWith("lfm2")) return [
+    ["0|512",  "1-tile · 512 px — 0.67 s phone, 9/30 (resolution trap below the tile flip)"],
+    ["0|1024", "1024 px input — same tokens as 512, 9–11/30"],
+    ["0|1280", "★ 1280 px — the sweet spot: 17/30 at ~1.6 s phone / 0.4 s mac (3 tiles, 796 tok)"],
+    ["0|0",    "native — 6 s phone, 18–21/30 (accuracy ceiling; cap ignored by tiler)"]];
+  if (cfg.startsWith("smol")) return [
+    ["0|512",  "1-tile · 512 px — 0.96 s phone, 9/30"],
+    ["320|0",  "@320 — 2.2 s, 12–13/30"],
+    ["576|0",  "★ @576 — 4.5 s, 13–15/30 (its best; native DEGRADES accuracy)"],
+    ["0|0",    "native — degrades (tiling fragments the scene)"]];
+  return [                                     // qwen family: the token dial
+    ["96|0",   "@96 — 0.82 s phone, 12/30 (fast tier)"],
+    ["128|0",  "@128 — 0.93 s, 14/30"],
+    ["256|0",  "@256 — 1.7 s, 17/30"],
+    ["320|0",  "@320 — 2.1 s, 21/30 (enumeration sweet spot)"],
+    ["448|0",  "@448 — 3.1 s, 22/30"],
+    ["576|0",  "★ @576 — 4.6 s serial / 1.2–1.5 s cached, 26/30 (reading tier)"],
+    ["1024|0", "@1024 — 13 s, 26/30 (no gain over @576, judged)"],
+    ["0|0",    "native — ~4,000 tok, 13–21 s encode"]];
+};
+function refreshImt() {
+  const opts = FAMILY_OPTS($("cfg").value);
+  $("imt").innerHTML = opts.map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+  $("imt").value = (opts.find(([, l]) => l.includes("★")) || opts[0])[0];
+}
+const imtParts = () => $("imt").value.split("|").map(Number);
 
 /* ---------- device polling + thermal strip ---------- */
 const MAXP = 3801, MAXE = 3321;          // cluster max clocks, MHz
@@ -339,13 +395,15 @@ $("pairForm").onsubmit = async ev => {
 $("startSrv").onclick = async () => {
   const fd = new FormData();
   fd.set("engine", $("eng").value); fd.set("config", $("cfg").value);
-  fd.set("threads", $("thr").value); fd.set("imt", $("imt").value);
+  fd.set("threads", $("thr").value); fd.set("imt", imtParts()[0]);
   $("startSrv").disabled = true;
   $("srvState").dataset.busy = "loading model…"; $("srvState").textContent = "loading model…";
   const r = await (await fetch("/api/server", {method: "POST", body: fd})).json();
   delete $("srvState").dataset.busy;
   $("srvState").textContent = r.ok ? `ready · loaded in ${r.load_s}s` : (r.error || "failed");
   $("startSrv").disabled = false; $("go").disabled = !r.ok || !file;
+  warmed = false;  // a fresh server has an empty KV cache
+  if (r.ok && file && $("mode").value === "cached") await warmScene();
 };
 
 /* ---------- image pick ---------- */
@@ -355,6 +413,16 @@ $("file").onchange = () => pick($("file").files[0]);
 $("drop").ondragover = e => e.preventDefault();
 $("drop").ondrop = e => { e.preventDefault(); pick(e.dataTransfer.files[0]); };
 let warmed = false;
+async function warmScene() {
+  // two-phase flow, phase A: warm the KV cache while the user types the question
+  $("runState").textContent = "warming scene cache…";
+  const fd = new FormData(); fd.set("image", file); fd.set("prep", imtParts()[1]);
+  try {
+    const r = await (await fetch("/api/warm", {method: "POST", body: fd})).json();
+    if (r.ok) { warmed = true; $("runState").textContent = `scene warmed in ${r.warm_s}s (hidden time) — next run measures perceived TTFT`; }
+    else $("runState").textContent = r.error || "warm failed — will run serial";
+  } catch (e) { $("runState").textContent = "warm failed — will run serial"; }
+}
 async function pick(f) {
   if (!f) return;
   file = f; warmed = false;
@@ -362,23 +430,32 @@ async function pick(f) {
   img.src = URL.createObjectURL(f);
   $("drop").replaceChildren(img);
   $("go").disabled = !$("srvState").textContent.startsWith("ready");
-  // two-phase flow, phase A: warm the KV cache while the user types the question
-  if (!$("go").disabled) {
-    $("runState").textContent = "warming scene cache…";
-    const fd = new FormData(); fd.set("image", f);
-    try {
-      const r = await (await fetch("/api/warm", {method: "POST", body: fd})).json();
-      if (r.ok) { warmed = true; $("runState").textContent = `scene warmed in ${r.warm_s}s (hidden time) — next run measures perceived TTFT`; }
-      else $("runState").textContent = r.error || "warm failed — will run serial";
-    } catch (e) { $("runState").textContent = "warm failed — will run serial"; }
-  }
+  if (!$("go").disabled && $("mode").value === "cached") await warmScene();
+  else if ($("mode").value === "serial")
+    $("runState").textContent = "serial mode — full pipeline measured, cache off";
 }
+// imt/variant/engine are SERVER LAUNCH settings — changing them without a
+// restart would silently run on the old config; block the run until relaunch
+for (const id of ["cfg", "eng", "imt", "thr"]) {
+  $(id).addEventListener("change", () => {
+    if ($("srvState").textContent.startsWith("ready")) {
+      $("srvState").textContent = "settings changed — press Start server to apply";
+      $("go").disabled = true; warmed = false;
+    }
+  });
+}
+$("mode").onchange = async () => {
+  if ($("mode").value === "cached" && file && !warmed && !$("go").disabled) await warmScene();
+  if ($("mode").value === "serial")
+    $("runState").textContent = "serial mode — full pipeline measured, cache off";
+};
 
 /* ---------- run ---------- */
 $("go").onclick = async () => {
   const fd = new FormData();
   fd.set("image", file); fd.set("question", $("q").value || "What does this say?");
-  fd.set("cached", warmed ? "1" : "0");
+  fd.set("cached", ($("mode").value === "cached" && warmed) ? "1" : "0");
+  fd.set("prep", imtParts()[1]);
   $("go").disabled = true; running = true; base = latest;
   $("ans").innerHTML = ""; $("tiles").innerHTML = "";
   const t0 = performance.now();
@@ -618,6 +695,58 @@ function addRow(r) {   // live runs land here — newest first, stay on current 
   HIST.unshift(r);
   renderHist();
 }
+/* ---------- model anatomy ---------- */
+function gnode(cls, title, sub, ops) {
+  return `<div class="gnode ${cls}"><b>${title}</b> <span style="opacity:.7">${sub || ""}</span>` +
+         (ops ? `<span class="ops">${ops}</span>` : "") + `</div>`;
+}
+const ARR = `<div class="garrow">▼</div>`;
+async function openAnatomy() {
+  const cfg = $("cfg").value, eng = $("eng").value;
+  const a = await (await fetch(`/api/anatomy?config=${cfg}&engine=${eng}`)).json();
+  if (a.error) { alert(a.error); return; }
+  const encCls = a.enc_backend.startsWith("cpu") ? (a.enc_backend.includes("gap") ? "bad" : "cpu") : "";
+  const decCls = a.dec_backend.includes("fallback") ? "bad" : (a.dec_backend === "cpu" ? "cpu" : "");
+  $("achips").innerHTML = [
+    `${a.arch} · ${cfg}`, `engine ${eng}`, `${a.model_file} (${a.model_mb} MB)`,
+    `mmproj ${a.mmproj_mb} MB`, `${a.n_layer} layers`, `embd ${a.n_embd}`,
+    `heads ${a.n_head}/${a.n_head_kv} kv (GQA)`, `ffn ${a.n_ff}`, `ctx ${a.n_ctx_train}`,
+    `encoder → ${a.enc_backend}`, `decoder → ${a.dec_backend}`,
+  ].map(c => `<span class="chip">${c}</span>`).join("");
+  const mix = t => t.map(x =>
+    `<div class="mixrow"><span style="width:64px;font-family:monospace">${x.type}</span>` +
+    `<div class="mixbar" style="width:${Math.max(2, x.mb / 12)}px"></div>` +
+    `<span style="opacity:.6">${x.count} tensors · ${x.mb} MB</span></div>`).join("");
+  $("amix").innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">` +
+    `<div><h3 style="font-size:12px;opacity:.6;margin:0 0 4px">DECODER WEIGHTS (${a.model_mb} MB)</h3>${mix(a.types)}</div>` +
+    `<div><h3 style="font-size:12px;opacity:.6;margin:0 0 4px">VISION/MMPROJ WEIGHTS (${a.mmproj_mb} MB)</h3>${mix(a.mm_types)}</div></div>`;
+  const v = a.vision, wt = a.types[0]?.type || "?";
+  $("agraph").innerHTML = `
+   <div class="gcol"><h3>vision tower — mmproj (${a.enc_backend})</h3>
+    ${gnode(encCls, "photo", "→ smart-resize / tiling")}${ARR}
+    ${gnode(encCls, "patchify", `${v.patch}×${v.patch} px patches`, "CONV2D · IM2COL")}${ARR}
+    ${gnode(encCls, `ViT × ${v.blocks} blocks`, `embd ${v.embd}`, "LAYER_NORM · MUL_MAT(QKV) · SOFT_MAX · GELU · MUL_MAT(FFN)")}${ARR}
+    ${gnode(encCls, "merger / projector", `→ LM space`, "MUL_MAT · GELU")}${ARR}
+    ${gnode("", "image tokens", "count set by --image-max-tokens")}
+   </div>
+   <div class="gcol"><h3>language model (${a.dec_backend})</h3>
+    ${gnode("", "embed lookup", "image tokens + text tokens", "GET_ROWS (CPU by design)")}${ARR}
+    ${gnode(decCls, `transformer × ${a.n_layer} blocks`, "one block expanded:", "")}
+    <div style="margin-left:18px">
+      ${gnode(decCls, "RMS_NORM", "", "RMS_NORM")}
+      ${gnode(decCls, "attention", `Q/K/V ${wt} · GQA ${a.n_head}/${a.n_head_kv} · KV cache f16`, `MUL_MAT ×4 (${wt}) · ROPE · flash-attn: ${a.fa}`)}
+      ${gnode(decCls, "FFN (SwiGLU)", `ffn ${a.n_ff}`, `MUL_MAT gate/up (${wt}) · SILU · MUL_MAT down · + residuals`)}
+    </div>${ARR}
+    ${gnode(decCls, "output head", `RMS_NORM → logits`, `MUL_MAT (${a.types.find(t=>t.type==="Q8_0")?"Q8_0":wt})`)}${ARR}
+    ${gnode("", "sampling", "greedy / temp 0", "CPU by design")}
+   </div>`;
+  $("afoot").textContent = "Placement is measured, not assumed: encoder from mtmd's launch-log op-scan, " +
+    "decoder from the launch probe + ngl ablations. Green = GPU-resident · orange = CPU · red = silent fallback " +
+    "(unsupported ops or weight types on this backend — the latency killer). Weight histograms parsed live from the GGUF pair.";
+  $("anat").classList.add("open");
+}
+if (location.hash === "#anatomy") setTimeout(openAnatomy, 1200);
+
 async function loadHistory() {
   const h = await (await fetch("/api/runs")).json();
   HIST = h.runs.slice().reverse();   // ledger is chronological; view is newest-first

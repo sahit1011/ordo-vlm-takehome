@@ -30,6 +30,8 @@ def soc():
 
 
 def cool():
+    if ENGINE == "mac":   # cool-gate is a phone-thermal protocol; Mac has fans
+        return
     while True:
         t = soc()
         print(f"  [cool] SoC {t:.1f}", flush=True)
@@ -40,6 +42,7 @@ def cool():
 
 GT = sys.argv[3] if len(sys.argv) > 3 else "eval/dev_ground_truth.csv"
 ENGINE = sys.argv[4] if len(sys.argv) > 4 else "phone-gpu"
+PREP = sys.argv[5] if len(sys.argv) > 5 else None  # client-side max-side px; "0" = force original
 rows = list(csv.DictReader(open(ROOT / GT)))
 if "dev_ground_truth" in GT:
     rows += [r for r in csv.DictReader(open(ROOT / "eval/smoke_gt.csv")) if r["id"].startswith("p01")]
@@ -60,7 +63,8 @@ for i, it in enumerate(rows):
         rec = requests.post(f"{DASH}/api/infer", timeout=1200,
                             files={"image": (p.name, f, "image/jpeg")},
                             data={"question": it["question"] + BRIEF, "max_tokens": 96,
-                                  "answer_gt": it["answer"], "accept_also": it["accept_also"]}).json()
+                                  "answer_gt": it["answer"], "accept_also": it["accept_also"],
+                                  **({"prep": PREP} if PREP is not None else {})}).json()
     if "error" in rec:
         print(f"  {it['id']}: ERROR {rec['error']}", flush=True)
         continue

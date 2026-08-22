@@ -110,7 +110,7 @@ def detect_backends(engine: str) -> tuple[str, str]:
     return enc, dec
 
 
-def preprocess_for_config(path):
+def preprocess_for_config(path, prep=None):
     """LFM2's tiler splits anything larger than one 512-px tile into 3+ tiles,
     each a full CPU-fallback encoder pass on Adreno (~1.6 s/tile) — the token
     cap can't prevent it (it trims within tiles, geometry sets the count). So
@@ -118,12 +118,15 @@ def preprocess_for_config(path):
     measured 161–290 tokens/image, ~1 s TTFT floor on phone. Known trade: fine
     print pays (client-side resize loses knife-edge detail) — Qwen configs are
     never resized (their smart-resize from original pixels is the accuracy path)."""
-    if not (state.get("config") or "").startswith("lfm2"):
+    if prep is not None and prep <= 0:
+        return  # explicit "send original pixels"
+    target = prep if prep else (512 if (state.get("config") or "").startswith("lfm2") else None)
+    if target is None:
         return
     from PIL import Image
     img = Image.open(path)
     w, h = img.size
-    s = 512 / max(w, h)
+    s = target / max(w, h)
     if s < 1:
         img = img.convert("RGB") if img.mode != "RGB" else img
         img.resize((round(w * s), round(h * s)), Image.LANCZOS).save(path, quality=92)
@@ -231,6 +234,15 @@ def connect(addr: str = Form(...), code: str = Form(None)):
     return {"ok": r.returncode == 0, "out": (r.stdout + r.stderr).strip()}
 
 
+@app.get("/api/anatomy")
+def api_anatomy(config: str, engine: str = "phone-gpu"):
+    import model_anatomy
+    try:
+        return model_anatomy.anatomy(config, CONFIGS[config], engine)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 @app.post("/api/server")
 def start_server(engine: str = Form(...), config: str = Form(...),
                  threads: int = Form(6), imt: int = Form(576)):
@@ -301,7 +313,7 @@ def start_server(engine: str = Form(...), config: str = Form(...),
 @app.post("/api/infer")
 def infer(image: UploadFile = File(...), question: str = Form(...),
           max_tokens: int = Form(64), answer_gt: str = Form(None),
-          accept_also: str = Form("")):
+          accept_also: str = Form(""), prep: int = Form(None)):
     with lock:
         if not state["ready"]:
             return JSONResponse({"error": "start a server first"}, status_code=409)
@@ -309,9 +321,9 @@ def infer(image: UploadFile = File(...), question: str = Form(...),
         ext = (image.filename or "img.jpg").rsplit(".", 1)[-1].lower()
         if ext not in ("jpg", "jpeg", "png"):
             return JSONResponse({"error": "jpg/jpeg/png only"}, status_code=400)
-        path = UPLOADS / f"up_{int(time.time())}.{ext}"
+        path = UPLOADS / f"up_{time.time_ns()}.{ext}"
         path.write_bytes(image.file.read())
-        preprocess_for_config(path)
+        preprocess_for_config(path, prep)
 
         url = f"http://127.0.0.1:{MAC_PORT if state['engine'] == 'mac' else LOCAL_PORT}"
         on_phone = state["engine"] != "mac"
@@ -354,7 +366,7 @@ def infer(image: UploadFile = File(...), question: str = Form(...),
 
 
 @app.post("/api/warm")
-def warm(image: UploadFile = File(...)):
+def warm(image: UploadFile = File(...), prep: int = Form(None)):
     """Two-phase flow, phase A: encode + image-prefill into the KV cache while
     the user is still typing/speaking. Perceived TTFT then = text prefill only."""
     if not state["ready"]:
@@ -362,7 +374,7 @@ def warm(image: UploadFile = File(...)):
     UPLOADS.mkdir(parents=True, exist_ok=True)
     path = UPLOADS / "warm_current.jpg"
     path.write_bytes(image.file.read())
-    preprocess_for_config(path)
+    preprocess_for_config(path, prep)
     url = f"http://127.0.0.1:{MAC_PORT if state['engine'] == 'mac' else LOCAL_PORT}"
     t0 = time.monotonic()
     try:
@@ -379,7 +391,8 @@ def warm(image: UploadFile = File(...)):
 
 @app.post("/api/infer_stream")
 def infer_stream(image: UploadFile = File(...), question: str = Form(...),
-                 max_tokens: int = Form(64), cached: int = Form(0)):
+                 max_tokens: int = Form(64), cached: int = Form(0),
+                 prep: int = Form(None)):
     """Same as /api/infer but streams SSE: token events live, then a done record."""
     if not state["ready"]:
         return JSONResponse({"error": "start a server first"}, status_code=409)
@@ -387,9 +400,9 @@ def infer_stream(image: UploadFile = File(...), question: str = Form(...),
     ext = (image.filename or "img.jpg").rsplit(".", 1)[-1].lower()
     if ext not in ("jpg", "jpeg", "png"):
         return JSONResponse({"error": "jpg/jpeg/png only"}, status_code=400)
-    path = UPLOADS / f"up_{int(time.time())}.{ext}"
+    path = UPLOADS / f"up_{time.time_ns()}.{ext}"
     path.write_bytes(image.file.read())
-    preprocess_for_config(path)
+    preprocess_for_config(path, prep)
     url = f"http://127.0.0.1:{MAC_PORT if state['engine'] == 'mac' else LOCAL_PORT}"
     on_phone = state["engine"] != "mac"
 

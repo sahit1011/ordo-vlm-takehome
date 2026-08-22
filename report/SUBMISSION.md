@@ -112,6 +112,8 @@ Equal tokens do **not** mean equal TTFT — prefill cost is equal, but encode = 
 
 **The full tuning grid — every measured variant, worst → best** (phone GPU, serial, 30 real photos; ledger medians across all uncached cells — every underlying row is in the dashboard history):
 
+*Reproducibility (Aug 19, Mac): all cited operating points re-run over the full 30-photo set — **6/6 within ±1 of print, four exact** — then the entire 11-cell matrix re-run a second time end-to-end (330 further inferences): **10/11 cells identical between the two same-day runs, the 11th ±1** (Qwen @576 26 · @320 19 · @128 12↔13; LFM2 native 18 · 1280 px 17 · 1152 px 15 · 1024 px 9 · 1-tile 9; SmolVLM @576 14 · @448 12 · 1-tile 9). Temp-0 determinism + pinned settings make the grid a measurement, not a sample.*
+
 *Qwen3-VL-2B (champion family):*
 
 | Variant | tokens p50 | encode p50 | TTFT p50 | Accuracy | Note |
@@ -137,6 +139,7 @@ Equal tokens do **not** mean equal TTFT — prefill cost is equal, but encode = 
 | 1024 px | 278 | 0.32 s | 0.62 s | 9 → 11/30 | resolution-starved |
 | 512 px (1-tile) | 173 | 0.32 s | 0.66 s | 9 → 9/30 | fastest, same starvation |
 | 1344 px | 796 | 0.92 s | 1.57 s | 15 → 16/30 | |
+| **1280 px ★** | 796 | 0.23 s mac | 0.40 s mac | **17/30** | the sub-1B sweet spot: tile-flip at 1024→1152 px; past it, more pixels per tile are free accuracy (94% of its ceiling at ⅓ the tokens) |
 | native 12 MP | 2317 | 3.08 s | 5.98 s | **19 → 21/30** | its ceiling (Mac probes judged: Q4_0 19/30, Q8 19/30) |
 
 *SmolVLM-500M Q8 (capacity-limited — the knob barely matters):*
@@ -149,6 +152,16 @@ Equal tokens do **not** mean equal TTFT — prefill cost is equal, but encode = 
 | 512 px (1-tile) | 160 | 0.56 s | 0.96 s | 9 → 9/30 | sub-second reached; capacity limit confirmed |
 
 The grid read top-to-bottom is the whole story: Qwen's accuracy climbs smoothly with tokens (11→26 of 30) because its knob controls real resolution; LFM2 steps in tile quanta and starves below 1344 px; SmolVLM is flat at ~40% at every setting — more pixels can't fix capacity. And the two worst rows are both *backend* failures, not model failures (Q2_K's CPU decoder, LFM2's upscaled tiles). The sub-second club, final standing — all three architectures measured at their fastest full-pipeline point on the same 30 photos: **LFM2-450 1-tile 0.67 s / 9-of-30 · SmolVLM-500 1-tile 0.96 s / 9-of-30 · Qwen3-2B @96 0.82 s / 12-of-30 and @128 0.93 s / 14-of-30 (judge-scored)** — the champion wins even the speed class the small models were built for.
+
+**The sweet spots, visually.** One panel per model — accuracy, encoder latency, and TTFT against *measured* image tokens, Mac and phone side by side (accuracy plotted once: device-invariance is verified). The shaded column is the benchmarked default. Qwen's panel shows the smooth dial and the plateau after @576; LFM2's shows the tile-quanta jump at the 1024→1152 px flip and the free accuracy from filling tiles (1152→1280 px at identical tokens); SmolVLM's shows the capacity flatline. The final chart overlays every operating point on both devices.
+
+![Qwen sweet spot](figures/sweet_qwen.png)
+
+![LFM2 sweet spot](figures/sweet_lfm2.png)
+
+![SmolVLM sweet spot](figures/sweet_smol.png)
+
+![Overall Pareto, both devices](figures/sweet_overall.png)
 
 **Why the same file lands differently per platform.** Every stage is a ggml compute graph, and at load time each backend is asked, operator by operator, "do you have a kernel for this?" Metal is ggml's most mature GPU backend with near-complete op coverage — LFM2's SigLIP2 encoder runs fully on the M-series GPU. The OpenCL/Adreno backend is the youngest with a narrower op set — the same SigLIP2 graph contains operators it doesn't implement, so llama.cpp reroutes the whole CLIP graph to CPU. **"GPU-capable" is not a property of the model; it's per-backend, per-operator kernel coverage.** The tally makes it vivid: on the *same phone GPU*, Qwen's and SmolVLM-500M's encoders run fine while both LFM2s and SmolVLM2-2.2B fall off; the same lottery hit the decoder via weight types — Q2_K and MXFP4 (CPU on Adreno, GPU on Metal) vs Q4_0/Q8_0/BF16/Q4_K_M (GPU on both). Product consequence: on Android, LFM2-450M's TTFT floor is CPU-encoder-bound at ~1.6 s *per tile* — its 0.99 s Mac numbers reproduce on the phone only for 1-tile photos (measured: 0.44–1.0 s single-tile vs ~8 s three-tile on the same 5-photo cell, flat across every token cap because the cap can't change tile count). So the mobile-model question isn't "how good is the model" but **"does every stage of this architecture have kernels on this backend"** — and it has to be measured, because nothing announces the fallback.
 

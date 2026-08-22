@@ -853,6 +853,40 @@ up). First token at 0.3 t/s adds ~3 s to TTFT — the other half of the spread.
 Status: CPU decode pathology re-opened, precisely scoped (any build, server
 mode, sustained). GPU path unaffected.
 
+### Reproduction matrix + LFM2 tile-flip sweep (Mac, hour ~13 — post-session addendum)
+
+All six cited operating points re-run end-to-end through the dashboard on the
+30-photo set: **6/6 reproduced within ±1 (4 exact)** — Qwen @576 26/30, @320
+19/30; LFM2 native 18/30, 1-tile 9/30; Smol @576 14/30, 1-tile 9/30, @448
+12/30 (flatline, again). New sweep located **LFM2's tile flip between 1024 and
+1152 px input**: ≤1024 px → 278 tok / 0.15 s / 9–10/30 (single-tile resolution
+trap — input size doesn't matter below the flip); ≥1152 px → 796 tok (3
+tiles), where accuracy climbs with pixels at constant tokens: 1152→15/30,
+**1280→17/30 (★ new sub-1B sweet spot: 94% of native ceiling at ⅓ tokens/
+latency)**, old 1344 rung 15–16/30. Dropdown default updated to 1280 px.
+Driver fix en route: cool-gate no longer phone-gates Mac runs (a dropped
+wireless-adb link had stalled the first repro attempt at the gate).
+
+### Trap #11 (user-spotted): sub-second runs corrupted run↔image provenance
+
+Uploads were saved as `up_<epoch-seconds>.jpg` — 1-second filename resolution.
+Today's Mac cells ran up to 3 queries/second (LFM2 1-tile TTFT 0.09 s), so
+later uploads overwrote earlier ones in the same second: 53 colliding files,
+152 rows whose run-detail showed the WRONG image. Timing/accuracy data were
+never affected (scoring uses the in-flight upload) — only the detail view's
+image link. Fix: nanosecond filenames; repair: all 1,281 GT-joinable rows
+remapped to their canonical eval image (0 unknowable). Moral: provenance
+links need collision-proof keys the moment throughput beats the clock tick.
+
+### Test-retest: full 11-cell matrix re-run (post provenance-fix)
+
+Second end-to-end pass of every cited cell, 330 inferences: **10/11 identical
+to the first pass, 1 cell ±1** (qwen @128: 12↔13). Confirms (a) the published
+grid reproduces, (b) the image-collision bug never touched inference pairing
+(lock-serialized), (c) temp-0 + pinned settings ⇒ the eval is deterministic to
+±1 item. LFM2 ladder re-confirmed: trap band ≤1024 px = 9, flip at 1152 = 15,
+sweet spot 1280 px = 17, native = 18 (of 30).
+
 ### Open items
 
 - [x] Encoder A/B on phone: mtmd on OpenCL vs CPU — done (7.8 vs 22.6 s; and
